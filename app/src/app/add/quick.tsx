@@ -7,7 +7,7 @@ import { Button, Card, Chip, DateInput, Field, Muted, Screen, SectionTitle, Step
 import { QUICK_ADD_CHIPS } from '../../data/catalogue';
 import { addDays, formatDate, today as todayISO } from '../../lib/dates';
 import { guessCategory } from '../../lib/match';
-import { CATEGORY_EMOJI, SHELF_LIFE_RULES } from '../../lib/shelfLife';
+import { CATEGORY_EMOJI, itemEmoji, SHELF_LIFE_RULES } from '../../lib/shelfLife';
 import type { Category, Location, Unit } from '../../lib/types';
 import { useStore } from '../../store/useStore';
 import { colors, font, radius, space } from '../../theme';
@@ -121,7 +121,7 @@ export default function QuickAdd() {
             />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: space(3) }}>
               {chips.map((c) => (
-                <Chip key={c.name} icon={CATEGORY_EMOJI[c.category]} label={c.name} selected={selected?.name === c.name} onPress={() => pick(c)} />
+                <Chip key={c.name} icon={itemEmoji(c.name, c.category)} label={c.name} selected={selected?.name === c.name} onPress={() => pick(c)} />
               ))}
             </View>
             {query && !selected ? (

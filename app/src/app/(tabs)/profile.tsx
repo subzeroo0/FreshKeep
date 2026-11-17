@@ -10,7 +10,7 @@ import { Button, Card, Muted, SectionTitle } from '../../components/ui';
 import { api } from '../../lib/api';
 import { sendTestNudge } from '../../lib/notify';
 import { useStore } from '../../store/useStore';
-import { colors, font, radius, space } from '../../theme';
+import { colors, font, radius, space, TAB_BAR_SPACE } from '../../theme';
 
 const confirm = (title: string, msg: string, onYes: () => void) => {
   if (Platform.OS === 'web') {
@@ -65,7 +65,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: space(4), paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 10, paddingHorizontal: space(5), paddingBottom: TAB_BAR_SPACE }} keyboardShouldPersistTaps="handled">
         <Text style={[font.h1, { color: colors.text }]}>Profile</Text>
 
         <Card style={{ marginTop: space(4), flexDirection: 'row', alignItems: 'center', gap: 12 }}>

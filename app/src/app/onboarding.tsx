@@ -27,18 +27,18 @@ export default function Onboarding() {
 
   if (i === -1)
     return (
-      <View style={[styles.page, { paddingTop: insets.top + 24 }]}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: space(6) }}>
-          <Image source={require('../../assets/logo.png')} style={{ width: 220, height: 160 }} contentFit="contain" />
-          <Text style={[styles.brand]}>FreshKeep</Text>
-          <Text style={styles.tagline}>Eat what you buy before it expires.</Text>
-          <Muted style={{ textAlign: 'center', marginTop: space(3), fontSize: 15, lineHeight: 22 }}>
-            Import your grocery order, see what’s expiring, and get meals that use it up — planned around how you eat.
-          </Muted>
+      <View style={[styles.welcome, { paddingTop: insets.top + 24, paddingBottom: Math.max(insets.bottom, 18) + 6 }]}>
+        <Image source={require('../../assets/logo.png')} style={styles.welcomeLogo} contentFit="contain" tintColor={colors.lime} />
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <Text style={styles.welcomeBrand}>FreshKeep</Text>
+          <Text style={styles.welcomeHero}>Eat what{'\n'}you buy{'\n'}<Text style={{ color: colors.lime }}>before it{'\n'}expires</Text></Text>
+          <View style={styles.featureRow}>
+            {['🧾 Import orders', '⏳ Track expiry', '🍛 Cook it up'].map((f) => (
+              <View key={f} style={styles.feature}><Text style={styles.featureText}>{f}</Text></View>
+            ))}
+          </View>
         </View>
-        <Footer>
-          <Button title="Start" onPress={() => setI(0)} />
-        </Footer>
+        <Button title="Get started" icon="arrow-forward" onPress={() => setI(0)} style={{ marginTop: space(6) }} />
       </View>
     );
 
@@ -125,11 +125,18 @@ function BigOption({ icon, title, sub, onPress }: { icon: string; title: string;
 }
 
 const styles = StyleSheet.create({
+  welcome: { flex: 1, backgroundColor: colors.brandDark, paddingHorizontal: space(6) },
+  welcomeLogo: { width: 120, height: 88 },
+  welcomeBrand: { color: colors.textOnDarkMuted, fontSize: 14, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase' },
+  welcomeHero: { fontFamily: font.display, fontSize: 64, lineHeight: 66, color: colors.white, textTransform: 'uppercase', marginTop: space(2) },
+  featureRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: space(6) },
+  feature: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999 },
+  featureText: { color: colors.textOnDark, fontWeight: '600', fontSize: 13 },
   page: { flex: 1, backgroundColor: colors.bg },
   brand: { fontSize: 34, fontWeight: '800', color: colors.brand, letterSpacing: -0.8, marginTop: space(4) },
   tagline: { fontSize: 19, fontWeight: '600', color: colors.text, marginTop: 6, textAlign: 'center' },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: space(5), paddingVertical: 8 },
-  progress: { flex: 1, height: 6, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' },
-  progressFill: { height: 6, backgroundColor: colors.brand, borderRadius: 3 },
-  big: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: space(4), borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  progress: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.brandSoft, overflow: 'hidden' },
+  progressFill: { height: 8, backgroundColor: colors.limeDeep, borderRadius: 4 },
+  big: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: space(4), borderRadius: radius.lg, backgroundColor: colors.surface },
 });

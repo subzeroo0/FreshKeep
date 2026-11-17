@@ -1,22 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatQty } from '../../components/ItemRow';
 import { Sheet } from '../../components/Sheet';
 import { toast } from '../../components/Toast';
-import { Button, Card, Chip, ConfidenceTag, DateInput, EmptyState, Muted, Screen, SectionTitle, Stepper, TopBar } from '../../components/ui';
+import { Button, Chip, DateInput, Display, EmptyState, Eyebrow, Footer, IconButton, Muted, SectionTitle, Stepper, TopBar } from '../../components/ui';
 import { RECIPES } from '../../data/recipes';
 import { daysLeftLabel, formatDate, today as todayISO } from '../../lib/dates';
 import { confidenceExplanation, daysLeft, urgencyOf } from '../../lib/expiry';
 import { buildFromRecipe, daysLeftMap, wordConflicts } from '../../lib/meals';
 import { itemEmoji, SHELF_LIFE_RULES } from '../../lib/shelfLife';
 import { useStore } from '../../store/useStore';
-import { colors, font, radius, space, urgencyColors } from '../../theme';
+import { categoryColor, colors, confidenceColors, font, radius, shadow, space, urgencyColors } from '../../theme';
 
+// M17 — item detail and actions.
 export default function ItemDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const item = useStore((s) => s.items.find((i) => i.id === id));
   const items = useStore((s) => s.items);
   const profile = useStore((s) => s.profile);
@@ -28,79 +31,92 @@ export default function ItemDetail() {
   const meals = useMemo(() => {
     if (!item) return [];
     const dl = daysLeftMap(items, now);
-    const out: { title: string; time: number; slot: string }[] = [];
+    const out: { id: string; title: string; time: number; slot: string }[] = [];
     for (const r of RECIPES) {
+      if (r.id.startsWith('jain-') && profile.dietType !== 'jain') continue;
       const m = buildFromRecipe(r, items, dl, now, r.slots[0], profile);
       if (m && m.usesItems.some((u) => u.itemId === item.id) && !wordConflicts(m.title + ' ' + m.extraIngredients.join(' '), profile))
-        out.push({ title: m.title, time: m.cookTimeMin, slot: r.slots.join(' / ') });
+        out.push({ id: r.id, title: m.title, time: m.cookTimeMin, slot: r.slots[0] });
     }
-    return out.slice(0, 4);
+    return out.slice(0, 6);
   }, [item, items, profile, now]);
 
   if (!item)
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
         <TopBar title="Item" back />
-        <EmptyState icon="🤷" title="Item not found" body="It may have been removed." />
+        <View style={{ paddingHorizontal: space(5) }}>
+          <EmptyState icon="🤷" title="Item not found" body="It may have been removed." />
+        </View>
       </View>
     );
 
   const rule = SHELF_LIFE_RULES[item.category];
   const d = daysLeft(item.effectiveExpiry, now);
   const u = urgencyColors[urgencyOf(d)];
+  const conf = confidenceColors[item.confidence];
   const closed = item.status !== 'active';
+  const heroColor = categoryColor[item.category];
+  const daysBig = d < 0 ? 'Expired' : d === 0 ? 'Today' : `${d} day${d === 1 ? '' : 's'}`;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <TopBar title="" back />
-      <Screen>
-        <View style={{ alignItems: 'center', marginTop: -space(2) }}>
-          <View style={[styles.hero, { backgroundColor: u.bg }]}>
-            <Text style={{ fontSize: 52 }}>{itemEmoji(item.displayName, item.category)}</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space(8) }}>
+        {/* Hero */}
+        <View style={[styles.hero, { backgroundColor: heroColor, paddingTop: insets.top + 8 }]}>
+          <Text style={styles.watermark} numberOfLines={2}>{rule.label}</Text>
+          <View style={styles.heroBar}>
+            <IconButton icon="chevron-back" tone="glass" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
+            {!closed ? <IconButton icon="calendar-outline" tone="glass" label="Enter the printed date" onPress={() => { setNewDate(item.printedExpiry); setDateSheet(true); }} /> : null}
           </View>
-          <Text style={[font.h2, { color: colors.text, textAlign: 'center', marginTop: space(3) }]}>{item.displayName}</Text>
-          <Muted style={{ marginTop: 4 }}>{formatQty(item)} · {rule.label}{item.location !== 'fridge' ? ` · ${item.location}` : ''}</Muted>
-          {closed ? (
-            <View style={[styles.daysPill, { backgroundColor: colors.expiredSoft }]}>
-              <Text style={[styles.daysText, { color: colors.expired }]}>{item.status === 'used' ? 'Used up' : 'Thrown out'}</Text>
-            </View>
-          ) : (
-            <View style={[styles.daysPill, { backgroundColor: u.bg }]}>
-              <Text style={[styles.daysText, { color: u.fg }]}>{daysLeftLabel(d)}</Text>
-            </View>
-          )}
+          <View style={styles.emojiPlate}>
+            <Text style={{ fontSize: 84 }}>{itemEmoji(item.displayName, item.category)}</Text>
+          </View>
         </View>
 
-        <Card style={{ marginTop: space(5) }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <ConfidenceTag confidence={item.confidence} />
-            <Text style={{ flex: 1, fontWeight: '700', color: colors.text }}>Use by {formatDate(item.effectiveExpiry)}</Text>
+        {/* Body sheet */}
+        <View style={styles.sheet}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Eyebrow>{rule.label}{item.location !== 'fridge' ? ` · ${item.location}` : ''}</Eyebrow>
+              <Display size="h1" style={{ marginTop: 4 }}>{item.displayName}</Display>
+              <Muted style={{ marginTop: 4, fontSize: 14 }}>{formatQty(item)}{item.openedAt ? ' · Opened' : ''}</Muted>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Display size="h2" color={closed ? colors.expired : u.fg}>{closed ? (item.status === 'used' ? 'Used' : 'Binned') : daysBig}</Display>
+              {!closed ? <Text style={{ fontSize: 12, color: colors.textMuted }}>{d >= 0 ? 'left' : 'check before eating'}</Text> : null}
+            </View>
           </View>
-          <Muted>{confidenceExplanation(item, rule)}</Muted>
-          {item.openedAt && rule.openedDays ? <Muted style={{ marginTop: 6 }}>Opened packs last about {rule.openedDays} days, so the date moved up.</Muted> : null}
-          <View style={styles.dates}>
-            <DateRow label={item.source === 'order_import' ? 'Delivered' : 'Purchased'} value={item.purchasedAt} />
-            <DateRow label="Printed" value={item.printedExpiry} />
-            <DateRow label="Opened" value={item.openedAt} />
-            <DateRow label="Effective" value={item.effectiveExpiry} bold />
-          </View>
-        </Card>
 
-        {!closed ? (
-          <>
-            <SectionTitle>How much is left?</SectionTitle>
-            <Card>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={styles.barBg}>
-                  <View style={[styles.barFg, { width: `${Math.round(item.remainingFraction * 100)}%` }]} />
-                </View>
-                <Text style={{ fontWeight: '700', color: colors.text, width: 44, textAlign: 'right' }}>{Math.round(item.remainingFraction * 100)}%</Text>
+          {/* Info tiles */}
+          <View style={styles.tiles}>
+            <View style={styles.tile}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={[styles.dot, { backgroundColor: conf.fg }]} />
+                <Text style={[styles.tileLabel, { color: conf.fg }]}>{conf.label}</Text>
               </View>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              <Text style={styles.tileValue}>{formatDate(item.effectiveExpiry)}</Text>
+              <Text style={styles.tileSub}>use-by date</Text>
+            </View>
+            <View style={styles.tile}>
+              <Text style={styles.tileLabel}>Left in the pack</Text>
+              <Text style={styles.tileValue}>{Math.round(item.remainingFraction * 100)}%</Text>
+              <View style={styles.barBg}><View style={[styles.barFg, { width: `${Math.round(item.remainingFraction * 100)}%` }]} /></View>
+            </View>
+          </View>
+          <Muted style={{ marginTop: space(3) }}>
+            {confidenceExplanation(item, rule)}
+            {item.openedAt && rule.openedDays ? ` Opened packs last about ${rule.openedDays} days, so the date moved up.` : ''}
+          </Muted>
+
+          {!closed ? (
+            <>
+              <SectionTitle>How much is left?</SectionTitle>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 {[1, 0.75, 0.5, 0.25].map((f) => (
                   <Chip
                     key={f}
-                    label={`${f * 100}%`}
+                    label={f === 1 ? 'Full' : `${f * 100}%`}
                     selected={Math.abs(item.remainingFraction - f) < 0.01}
                     onPress={() => {
                       if (f < item.remainingFraction) useSome(item.id, item.remainingFraction - f);
@@ -109,58 +125,67 @@ export default function ItemDetail() {
                   />
                 ))}
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
-                <Muted>Quantity ({item.unit})</Muted>
-                <Stepper value={item.quantity} min={1} max={5000} step={item.unit === 'g' || item.unit === 'ml' ? 50 : 1} onChange={(q) => updateItem(item.id, { quantity: q })} />
+              <View style={styles.qtyRow}>
+                <Text style={{ fontWeight: '700', color: colors.text, flex: 1 }}>Quantity ({item.unit})</Text>
+                <Stepper value={item.quantity} dark min={1} max={5000} step={item.unit === 'g' || item.unit === 'ml' ? 50 : 1} onChange={(q) => updateItem(item.id, { quantity: q })} />
               </View>
-            </Card>
 
-            <SectionTitle>Actions</SectionTitle>
-            <View style={styles.grid}>
-              <ActionTile icon="lock-open-outline" label={item.openedAt ? 'Opened' : 'Mark opened'} disabled={!!item.openedAt} onPress={() => {
-                const before = d;
-                markOpened(item.id);
-                const after = useStore.getState().items.find((i) => i.id === item.id);
-                if (after) toast(`Opened — ${before} → ${daysLeft(after.effectiveExpiry, now)} day(s) left`);
-              }} />
-              <ActionTile icon="calendar-outline" label="Enter date" onPress={() => { setNewDate(item.printedExpiry); setDateSheet(true); }} />
-              <ActionTile
-                icon="snow-outline"
-                label={item.location === 'freezer' ? 'Move to fridge' : 'Move to freezer'}
-                disabled={item.location !== 'freezer' && rule.freezerDays == null}
-                onPress={() => moveTo(item.id, item.location === 'freezer' ? 'fridge' : 'freezer')}
-              />
-            </View>
-            {item.location !== 'freezer' && rule.freezerDays == null ? <Muted style={{ marginTop: 6, fontSize: 12 }}>{rule.label} doesn’t freeze well.</Muted> : null}
+              <SectionTitle>Actions</SectionTitle>
+              <View style={styles.actions}>
+                <Action icon="lock-open-outline" label={item.openedAt ? 'Opened' : 'Mark opened'} color={colors.lilac} disabled={!!item.openedAt} onPress={() => {
+                  const before = d;
+                  markOpened(item.id);
+                  const after = useStore.getState().items.find((i) => i.id === item.id);
+                  if (after) toast(`Opened — ${before} → ${daysLeft(after.effectiveExpiry, now)} day(s) left`);
+                }} />
+                <Action icon="calendar-outline" label="Enter date" color={colors.sky} onPress={() => { setNewDate(item.printedExpiry); setDateSheet(true); }} />
+                <Action
+                  icon="snow-outline"
+                  label={item.location === 'freezer' ? 'To fridge' : 'Freeze'}
+                  color={colors.mint}
+                  disabled={item.location !== 'freezer' && rule.freezerDays == null}
+                  onPress={() => moveTo(item.id, item.location === 'freezer' ? 'fridge' : 'freezer')}
+                />
+                <Action icon="trash-outline" label="Thrown out" color={colors.dangerSoft} iconColor={colors.danger} onPress={() => { discard(item.id); toast(`${item.displayName} thrown out`); router.back(); }} />
+              </View>
+              {item.location !== 'freezer' && rule.freezerDays == null ? <Muted style={{ marginTop: 8, fontSize: 12 }}>{rule.label} doesn’t freeze well.</Muted> : null}
 
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: space(4) }}>
-              <Button title="Used up" icon="checkmark-circle" style={{ flex: 1 }} onPress={() => { useUp(item.id); toast(`${item.displayName} used up 🎉`); router.back(); }} />
-              <Button title="Thrown out" icon="trash-outline" variant="danger" style={{ flex: 1 }} onPress={() => { discard(item.id); toast(`${item.displayName} thrown out`); router.back(); }} />
-            </View>
+              <SectionTitle>Dates</SectionTitle>
+              <View style={styles.datesCard}>
+                <DateRow label={item.source === 'order_import' ? 'Delivered' : 'Bought'} value={item.purchasedAt} />
+                <DateRow label="Printed on pack" value={item.printedExpiry} />
+                <DateRow label="Opened" value={item.openedAt} />
+                <DateRow label="Use by" value={item.effectiveExpiry} bold last />
+              </View>
 
-            <SectionTitle>Meals that use this</SectionTitle>
-            {meals.length ? (
-              meals.map((m) => (
-                <Card key={m.title} style={{ marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 12 }} onPress={() => router.push('/meals')}>
-                  <Text style={{ fontSize: 22 }}>🍽️</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: '700', color: colors.text }}>{m.title}</Text>
-                    <Muted>{m.time} min · {m.slot}</Muted>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
-                </Card>
-              ))
-            ) : (
-              <Muted>No matching recipes for your diet yet.</Muted>
-            )}
-          </>
-        ) : null}
-        <Muted style={{ marginTop: space(6), fontSize: 12, textAlign: 'center' }}>Dates are guidance — always check before eating.</Muted>
-      </Screen>
+              <SectionTitle>Meals that use this</SectionTitle>
+              {meals.length ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -space(5) }} contentContainerStyle={{ gap: 10, paddingHorizontal: space(5) }}>
+                  {meals.map((m, n) => (
+                    <Pressable key={m.id} onPress={() => router.navigate('/meals')} style={[styles.mealCard, { backgroundColor: [colors.butter, colors.mint, colors.lilac, colors.peach][n % 4] }]}>
+                      <Eyebrow color={colors.inkSoft}>{m.slot} · {m.time} min</Eyebrow>
+                      <Text style={[font.section, { color: colors.ink, marginTop: 6 }]} numberOfLines={3}>{m.title}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Muted>No matching recipes for your diet yet.</Muted>
+              )}
+            </>
+          ) : null}
+          <Muted style={{ marginTop: space(7), fontSize: 12, textAlign: 'center' }}>Dates are guidance — always check before eating.</Muted>
+        </View>
+      </ScrollView>
 
-      <Sheet visible={dateSheet} onClose={() => setDateSheet(false)} title="Enter the printed date">
+      {!closed ? (
+        <Footer>
+          <Button title="Used up" icon="checkmark-circle" trailing={item.pricePaise ? `₹${Math.round((item.pricePaise * item.remainingFraction) / 100)} rescued` : undefined} onPress={() => { useUp(item.id); toast(`${item.displayName} used up 🎉`); router.back(); }} />
+        </Footer>
+      ) : null}
+
+      <Sheet visible={dateSheet} onClose={() => setDateSheet(false)} title="Printed date">
         <DateInput value={newDate} onChange={setNewDate} category={item.category} />
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: space(4) }}>
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: space(5) }}>
           {item.printedExpiry ? (
             <Button title="Clear" variant="outline" style={{ flex: 1 }} onPress={() => { setPrintedDate(item.id, undefined); setDateSheet(false); }} />
           ) : null}
@@ -175,42 +200,48 @@ export default function ItemDetail() {
   );
 }
 
-function DateRow({ label, value, bold }: { label: string; value?: string; bold?: boolean }) {
+function DateRow({ label, value, bold, last }: { label: string; value?: string; bold?: boolean; last?: boolean }) {
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
+    <View style={[styles.dateRow, !last && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
       <Text style={{ color: colors.textMuted }}>{label}</Text>
-      <Text style={{ color: value ? colors.text : colors.textFaint, fontWeight: bold ? '700' : '500' }}>{value ? formatDate(value) : '—'}</Text>
+      <Text style={{ color: value ? colors.text : colors.textFaint, fontWeight: bold ? '800' : '600' }}>{value ? formatDate(value) : '—'}</Text>
     </View>
   );
 }
 
-function ActionTile({ icon, label, onPress, disabled }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; disabled?: boolean }) {
+function Action({ icon, label, onPress, disabled, color, iconColor = colors.ink }: {
+  icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; disabled?: boolean; color: string; iconColor?: string;
+}) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [styles.tile, disabled && { opacity: 0.45 }, pressed && { backgroundColor: colors.brandTint }]}>
-      <Ionicons name={icon} size={24} color={colors.brand} />
-      <Text style={styles.tileText}>{label}</Text>
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.action, disabled && { opacity: 0.4 }, pressed && { transform: [{ scale: 0.96 }] }]}>
+      <View style={[styles.actionIcon, { backgroundColor: color }]}>
+        <Ionicons name={icon} size={24} color={iconColor} />
+      </View>
+      <Text style={styles.actionText} numberOfLines={1}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  hero: { width: 96, height: 96, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
-  daysPill: { marginTop: 10, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.pill },
-  daysText: { fontWeight: '800', fontSize: 15 },
-  dates: { marginTop: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 6 },
-  barBg: { flex: 1, height: 10, borderRadius: 5, backgroundColor: colors.border, overflow: 'hidden' },
-  barFg: { height: 10, borderRadius: 5, backgroundColor: colors.brand },
-  grid: { flexDirection: 'row', gap: 8 },
-  tile: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
-    borderRadius: radius.md,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  tileText: { fontSize: 13, fontWeight: '600', color: colors.text, textAlign: 'center' },
+  hero: { height: 330, overflow: 'hidden', alignItems: 'center' },
+  watermark: { position: 'absolute', top: 70, left: -6, right: -6, fontFamily: font.display, fontSize: 104, lineHeight: 100, textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)', textAlign: 'center' },
+  heroBar: { flexDirection: 'row', justifyContent: 'space-between', alignSelf: 'stretch', paddingHorizontal: space(5) },
+  emojiPlate: { marginTop: space(4), width: 170, height: 170, borderRadius: 85, backgroundColor: 'rgba(255,255,255,0.6)', alignItems: 'center', justifyContent: 'center' },
+  sheet: { marginTop: -36, backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingHorizontal: space(5), paddingTop: space(6) },
+  tiles: { flexDirection: 'row', gap: 10, marginTop: space(5) },
+  tile: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: space(4), gap: 4, ...(shadow as object) },
+  tileLabel: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
+  tileValue: { fontSize: 19, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
+  tileSub: { fontSize: 12, color: colors.textFaint },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  barBg: { height: 6, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden', marginTop: 4 },
+  barFg: { height: 6, borderRadius: 3, backgroundColor: colors.limeDeep },
+  qtyRow: { flexDirection: 'row', alignItems: 'center', marginTop: space(4), backgroundColor: colors.surface, borderRadius: radius.lg, padding: space(3), paddingLeft: space(5) },
+  actions: { flexDirection: 'row', justifyContent: 'space-between' },
+  action: { alignItems: 'center', gap: 8, width: '24%' },
+  actionIcon: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center' },
+  actionText: { fontSize: 12, fontWeight: '700', color: colors.text },
+  datesCard: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: space(5) },
+  dateRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 14 },
+  mealCard: { width: 170, height: 150, borderRadius: radius.lg, padding: space(4), justifyContent: 'space-between' },
 });

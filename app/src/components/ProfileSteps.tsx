@@ -163,7 +163,7 @@ function AllergyStep({ profile, update }: { profile: UserProfile; update: (p: Pa
         }}
         placeholder="e.g. brinjal, mushroom, karela"
         placeholderTextColor={colors.textFaint}
-        style={ui.input}
+        style={[ui.inputWrap, ui.inputText, { borderRadius: 16 }]}
       />
     </View>
   );

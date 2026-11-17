@@ -7,8 +7,7 @@ import { daysLeftLabel } from '../lib/dates';
 import { daysLeft as calcDaysLeft, urgencyOf } from '../lib/expiry';
 import { itemEmoji } from '../lib/shelfLife';
 import type { InventoryItem } from '../lib/types';
-import { colors, radius, urgencyColors } from '../theme';
-import { ConfidenceTag } from './ui';
+import { categoryColor, colors, confidenceColors, radius, urgencyColors } from '../theme';
 
 const THRESHOLD = 90;
 
@@ -18,18 +17,20 @@ export function formatQty(item: Pick<InventoryItem, 'quantity' | 'unit' | 'remai
   return item.remainingFraction < 1 ? `${base} · ${Math.round(item.remainingFraction * 100)}% left` : base;
 }
 
+/** Fridge row: colour tile with the item's emoji, name, quantity, days-left pill. Swipe right = used up, left = thrown out. */
 export function ItemRow({ item, onPress, onLongPress, onSwipeRight, onSwipeLeft, now }: {
   item: InventoryItem;
   onPress: () => void;
   onLongPress?: () => void;
-  onSwipeRight?: () => void; // used up
-  onSwipeLeft?: () => void; // thrown out
+  onSwipeRight?: () => void;
+  onSwipeLeft?: () => void;
   now: string;
 }) {
   const x = useRef(new Animated.Value(0)).current;
   const d = calcDaysLeft(item.effectiveExpiry, now);
   const u = urgencyColors[urgencyOf(d)];
   const swipeEnabled = item.status === 'active' && (onSwipeLeft || onSwipeRight);
+  const native = Platform.OS !== 'web';
 
   const pan = useRef(
     PanResponder.create({
@@ -37,35 +38,36 @@ export function ItemRow({ item, onPress, onLongPress, onSwipeRight, onSwipeLeft,
       onPanResponderMove: (_, g) => x.setValue(g.dx),
       onPanResponderRelease: (_, g) => {
         if (g.dx > THRESHOLD && onSwipeRight) {
-          Animated.timing(x, { toValue: 500, duration: 160, useNativeDriver: Platform.OS !== 'web' }).start(() => {
+          Animated.timing(x, { toValue: 500, duration: 160, useNativeDriver: native }).start(() => {
             onSwipeRight();
             x.setValue(0);
           });
-          if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          if (native) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         } else if (g.dx < -THRESHOLD && onSwipeLeft) {
-          Animated.timing(x, { toValue: -500, duration: 160, useNativeDriver: Platform.OS !== 'web' }).start(() => {
+          Animated.timing(x, { toValue: -500, duration: 160, useNativeDriver: native }).start(() => {
             onSwipeLeft();
             x.setValue(0);
           });
-          if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+          if (native) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
         } else {
-          Animated.spring(x, { toValue: 0, useNativeDriver: Platform.OS !== 'web' }).start();
+          Animated.spring(x, { toValue: 0, useNativeDriver: native }).start();
         }
       },
-      onPanResponderTerminate: () => Animated.spring(x, { toValue: 0, useNativeDriver: Platform.OS !== 'web' }).start(),
+      onPanResponderTerminate: () => Animated.spring(x, { toValue: 0, useNativeDriver: native }).start(),
     }),
   ).current;
 
   const leftOpacity = x.interpolate({ inputRange: [0, THRESHOLD], outputRange: [0, 1], extrapolate: 'clamp' });
   const rightOpacity = x.interpolate({ inputRange: [-THRESHOLD, 0], outputRange: [1, 0], extrapolate: 'clamp' });
+  const conf = confidenceColors[item.confidence];
 
   return (
     <View style={styles.wrap}>
       {swipeEnabled ? (
         <>
-          <Animated.View style={[styles.under, { backgroundColor: colors.ok, opacity: leftOpacity }]}>
-            <Ionicons name="checkmark-circle" size={22} color="#fff" />
-            <Text style={styles.underText}>Used up</Text>
+          <Animated.View style={[styles.under, { backgroundColor: colors.lime, opacity: leftOpacity }]}>
+            <Ionicons name="checkmark-circle" size={22} color={colors.ink} />
+            <Text style={[styles.underText, { color: colors.ink }]}>Used up</Text>
           </Animated.View>
           <Animated.View style={[styles.under, { backgroundColor: colors.danger, justifyContent: 'flex-end', opacity: rightOpacity }]}>
             <Text style={styles.underText}>Thrown out</Text>
@@ -78,22 +80,30 @@ export function ItemRow({ item, onPress, onLongPress, onSwipeRight, onSwipeLeft,
           onPress={onPress}
           onLongPress={onLongPress}
           delayLongPress={350}
-          style={({ pressed }) => [styles.row, pressed && { backgroundColor: '#FBFAF6' }]}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.displayName}, ${daysLeftLabel(d)}`}
+          accessibilityHint="Swipe right when used up, left when thrown out, long-press for more"
+          style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.surfaceAlt }]}
         >
-          <View style={[styles.icon, { backgroundColor: u.bg }]}>
-            <Text style={{ fontSize: 22 }}>{itemEmoji(item.displayName, item.category)}</Text>
+          <View style={[styles.icon, { backgroundColor: categoryColor[item.category] }]}>
+            <Text style={{ fontSize: 26 }}>{itemEmoji(item.displayName, item.category)}</Text>
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.name} numberOfLines={1}>{item.displayName}</Text>
             <View style={styles.meta}>
-              <Text style={styles.qty} numberOfLines={1}>{formatQty(item)}</Text>
-              {item.location !== 'fridge' ? <Text style={styles.qty}>· {item.location === 'freezer' ? '❄️ Freezer' : 'Pantry'}</Text> : null}
-              {item.openedAt ? <Text style={styles.qty}>· Opened</Text> : null}
+              <Text style={styles.qty} numberOfLines={1}>
+                {formatQty(item)}
+                {item.location === 'freezer' ? ' · ❄️ Freezer' : item.location === 'pantry' ? ' · Pantry' : ''}
+                {item.openedAt ? ' · Opened' : ''}
+              </Text>
+            </View>
+            <View style={styles.confRow}>
+              <View style={[styles.confDot, { backgroundColor: conf.fg }]} />
+              <Text style={[styles.confText, { color: conf.fg }]}>{conf.label}</Text>
             </View>
           </View>
-          <View style={{ alignItems: 'flex-end', gap: 4 }}>
-            <Text style={[styles.days, { color: u.fg }]}>{daysLeftLabel(d)}</Text>
-            <ConfidenceTag confidence={item.confidence} small />
+          <View style={[styles.days, { backgroundColor: u.bg }]}>
+            <Text style={[styles.daysText, { color: u.fg }]}>{daysLeftLabel(d)}</Text>
           </View>
         </Pressable>
       </Animated.View>
@@ -102,28 +112,17 @@ export function ItemRow({ item, onPress, onLongPress, onSwipeRight, onSwipeLeft,
 }
 
 const styles = StyleSheet.create({
-  wrap: { borderRadius: radius.md, overflow: 'hidden', marginBottom: 8 },
-  under: {
-    ...StyleSheet.absoluteFill,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    gap: 8,
-  },
-  underText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  icon: { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  name: { fontSize: 16, fontWeight: '600', color: colors.text },
-  meta: { flexDirection: 'row', gap: 4, marginTop: 2 },
+  wrap: { borderRadius: radius.lg, overflow: 'hidden', marginBottom: 10 },
+  under: { ...StyleSheet.absoluteFill, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, gap: 8 },
+  underText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 10, paddingRight: 14, backgroundColor: colors.surface, borderRadius: radius.lg },
+  icon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  name: { fontSize: 16, fontWeight: '700', color: colors.text, letterSpacing: -0.2 },
+  meta: { flexDirection: 'row', marginTop: 2 },
   qty: { fontSize: 13, color: colors.textMuted },
-  days: { fontSize: 13, fontWeight: '700' },
+  confRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
+  confDot: { width: 6, height: 6, borderRadius: 3 },
+  confText: { fontSize: 11, fontWeight: '700' },
+  days: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999 },
+  daysText: { fontSize: 12, fontWeight: '800' },
 });

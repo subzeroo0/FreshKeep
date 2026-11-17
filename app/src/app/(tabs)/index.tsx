@@ -2,35 +2,38 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ItemRow } from '../../components/ItemRow';
 import { Sheet, SheetAction } from '../../components/Sheet';
 import { toast } from '../../components/Toast';
-import { Button, Chip, EmptyState, Muted } from '../../components/ui';
+import { Button, Chip, Display, EmptyState, Eyebrow, IconButton, SectionTitle } from '../../components/ui';
 import { today as todayISO } from '../../lib/dates';
 import { daysLeft, urgencyOf, Urgency } from '../../lib/expiry';
+import { itemEmoji } from '../../lib/shelfLife';
 import type { Category, InventoryItem, Location } from '../../lib/types';
 import { useStore } from '../../store/useStore';
-import { colors, font, radius, space, urgencyColors } from '../../theme';
+import { colors, radius, space, TAB_BAR_SPACE, urgencyColors } from '../../theme';
 
-const FILTERS: { key: string; label: string; cats?: Category[]; loc?: Location }[] = [
+const FILTERS: { key: string; label: string; icon?: string; bg?: string; cats?: Category[]; loc?: Location }[] = [
   { key: 'all', label: 'All' },
-  { key: 'dairy', label: '🥛 Dairy', cats: ['milk', 'uht_milk', 'curd_yogurt', 'paneer', 'cheese', 'butter_ghee', 'cream'] },
-  { key: 'veg', label: '🥬 Veg & fruit', cats: ['leafy_veg', 'vegetables', 'fruits'] },
-  { key: 'bakery', label: '🍞 Bread & batter', cats: ['bread', 'batter'] },
-  { key: 'protein', label: '🥚 Eggs & meat', cats: ['eggs', 'meat', 'fish', 'tofu'] },
-  { key: 'leftovers', label: '🍲 Leftovers', cats: ['leftovers', 'ready_to_eat'] },
-  { key: 'freezer', label: '❄️ Freezer', loc: 'freezer' },
+  { key: 'dairy', label: 'Dairy', icon: '🥛', bg: colors.sky, cats: ['milk', 'uht_milk', 'curd_yogurt', 'paneer', 'cheese', 'butter_ghee', 'cream'] },
+  { key: 'veg', label: 'Veg & fruit', icon: '🥬', bg: colors.mint, cats: ['leafy_veg', 'vegetables', 'fruits'] },
+  { key: 'bakery', label: 'Bread & batter', icon: '🍞', bg: colors.peach, cats: ['bread', 'batter'] },
+  { key: 'protein', label: 'Eggs & meat', icon: '🥚', bg: colors.butter, cats: ['eggs', 'meat', 'fish', 'tofu'] },
+  { key: 'leftovers', label: 'Leftovers', icon: '🍲', bg: colors.lilac, cats: ['leftovers', 'ready_to_eat'] },
+  { key: 'freezer', label: 'Freezer', icon: '❄️', bg: colors.sky, loc: 'freezer' },
 ];
 
 const SECTIONS: { key: Urgency; title: string; hint: string }[] = [
-  { key: 'today', title: 'Use today', hint: '≤ 1 day' },
+  { key: 'today', title: 'Use today', hint: 'Today or tomorrow' },
   { key: 'week', title: 'This week', hint: '2–5 days' },
-  { key: 'fine', title: 'Fine', hint: '> 5 days' },
-  { key: 'expired', title: 'Expired', hint: 'check before eating' },
+  { key: 'fine', title: 'Fine', hint: 'More than 5 days' },
+  { key: 'expired', title: 'Expired', hint: 'Check before eating' },
 ];
+
+const short = (name: string) => name.replace(/\(.*?\)/g, '').trim();
 
 export default function FridgeScreen() {
   const insets = useSafeAreaInsets();
@@ -39,6 +42,7 @@ export default function FridgeScreen() {
   const { useUp, discard, markOpened, useSome } = useStore();
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
   const [showExpired, setShowExpired] = useState(false);
   const [menuItem, setMenuItem] = useState<InventoryItem | null>(null);
   const now = todayISO();
@@ -59,15 +63,12 @@ export default function FridgeScreen() {
     return g;
   }, [filtered, now]);
 
-  const counts = useMemo(() => {
-    let today = 0, week = 0;
-    for (const i of active) {
-      const d = daysLeft(i.effectiveExpiry, now);
-      if (d >= 0 && d <= 1) today++;
-      else if (d >= 2 && d <= 5) week++;
-    }
-    return { today, week };
-  }, [active, now]);
+  const urgent = useMemo(
+    () => active.filter((i) => urgencyOf(daysLeft(i.effectiveExpiry, now)) === 'today').sort((a, b) => a.effectiveExpiry.localeCompare(b.effectiveExpiry)),
+    [active, now],
+  );
+  const weekCount = useMemo(() => active.filter((i) => urgencyOf(daysLeft(i.effectiveExpiry, now)) === 'week').length, [active, now]);
+  const nextUp = useMemo(() => [...active].filter((i) => daysLeft(i.effectiveExpiry, now) >= 0).sort((a, b) => a.effectiveExpiry.localeCompare(b.effectiveExpiry))[0], [active, now]);
 
   const withUndo = (fn: () => void, msg: string) => {
     const snap = { items: useStore.getState().items, events: useStore.getState().events };
@@ -85,98 +86,131 @@ export default function FridgeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: space(4), paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={{ paddingTop: insets.top + 10, paddingHorizontal: space(5), paddingBottom: TAB_BAR_SPACE }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
         <View style={styles.header}>
-          <Image source={require('../../../assets/logo.png')} style={styles.logo} contentFit="contain" />
+          <View style={styles.logoWrap}>
+            <Image source={require('../../../assets/logo.png')} style={{ width: 34, height: 26 }} contentFit="contain" />
+          </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.brand}>FreshKeep</Text>
-            <Muted>{greeting}{profile.name ? `, ${profile.name}` : ''}</Muted>
+            <Eyebrow>{greeting}{profile.name ? `, ${profile.name}` : ''}</Eyebrow>
+            <Display size="h2">My fridge</Display>
           </View>
-          <Pressable onPress={() => router.push('/add')} hitSlop={10} style={styles.headerBtn}>
-            <Ionicons name="add" size={24} color={colors.brand} />
-          </Pressable>
+          {active.length ? <IconButton icon={searching ? 'close' : 'search'} label="Search the fridge" onPress={() => { setSearching((v) => !v); setQuery(''); }} /> : null}
         </View>
-
-        {active.length > 0 ? (
-          <View style={styles.summary}>
-            <SummaryStat n={counts.today} label="expire today" color={colors.danger} />
-            <View style={styles.summaryDiv} />
-            <SummaryStat n={counts.week} label="this week" color={colors.warn} />
-            <View style={styles.summaryDiv} />
-            <SummaryStat n={active.length} label="in the fridge" color={colors.brand} />
-          </View>
-        ) : null}
-
-        {active.length > 0 ? (
-          <>
-            <View style={styles.search}>
-              <Ionicons name="search" size={18} color={colors.textFaint} />
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Search your fridge"
-                placeholderTextColor={colors.textFaint}
-                style={styles.searchInput}
-              />
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -space(4) }} contentContainerStyle={{ gap: 8, paddingHorizontal: space(4), paddingVertical: 4 }}>
-              {FILTERS.map((f) => (
-                <Chip key={f.key} label={f.label} selected={filter === f.key} onPress={() => setFilter(f.key)} />
-              ))}
-            </ScrollView>
-            <Muted style={{ marginTop: 10, textAlign: 'center', fontSize: 12 }}>Swipe right = used up · swipe left = thrown out · long-press for more</Muted>
-          </>
-        ) : null}
 
         {active.length === 0 ? (
           <EmptyState
             icon="🧊"
+            color={colors.butter}
             title="Your fridge is empty"
             body="Import your last grocery order, scan or photograph a pack, or quick-add loose veg. Every item gets a use-by date."
             action={
               <View style={{ gap: 10 }}>
-                <Button title="Import a grocery order" icon="receipt-outline" onPress={() => router.push('/add/import')} />
-                <Button title="Add something else" variant="secondary" icon="add-circle" onPress={() => router.push('/add')} />
+                <Button title="Import a grocery order" variant="dark" icon="receipt-outline" onPress={() => router.push('/add/import')} />
+                <Button title="Add something else" variant="outline" icon="add" onPress={() => router.push('/add')} />
               </View>
             }
           />
-        ) : null}
+        ) : (
+          <>
+            {/* Hero */}
+            {urgent.length ? (
+              <View style={[styles.hero, { backgroundColor: colors.butter }]}>
+                <Eyebrow color={colors.inkSoft}>Use these first</Eyebrow>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+                  <Display size="hero" color={colors.ink} style={{ flex: 1 }}>
+                    {urgent.length} to use{'\n'}today
+                  </Display>
+                  <View style={styles.emojiStack}>
+                    {urgent.slice(0, 3).map((i, n) => (
+                      <View key={i.id} style={[styles.emojiBubble, { marginLeft: n ? -16 : 0, zIndex: 3 - n }]}>
+                        <Text style={{ fontSize: 30 }}>{itemEmoji(i.displayName, i.category)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+                <Pressable onPress={() => router.navigate('/meals')} style={styles.glassPill} accessibilityRole="button" accessibilityLabel="See meals that use these">
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.glassTitle} numberOfLines={1}>{urgent.slice(0, 3).map((i) => short(i.displayName)).join(', ')}</Text>
+                    <Text style={styles.glassSub}>Cook with these · {weekCount} more this week</Text>
+                  </View>
+                  <View style={styles.glassBtn}><Ionicons name="arrow-forward" size={20} color={colors.white} /></View>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={[styles.hero, { backgroundColor: colors.mint }]}>
+                <Eyebrow color={colors.inkSoft}>Nothing expires today</Eyebrow>
+                <Display size="hero" color={colors.ink}>All{'\n'}fresh</Display>
+                <View style={styles.glassPill}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.glassTitle} numberOfLines={1}>{active.length} items in the fridge</Text>
+                    <Text style={styles.glassSub} numberOfLines={1}>{nextUp ? `Next up: ${short(nextUp.displayName)} in ${daysLeft(nextUp.effectiveExpiry, now)} days` : 'Check the expired ones below'}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
 
-        {active.length > 0 && filtered.length === 0 ? <EmptyState icon="🔍" title="Nothing matches" body="Try another filter or search." /> : null}
+            {searching ? (
+              <View style={styles.search}>
+                <Ionicons name="search" size={18} color={colors.textFaint} />
+                <TextInput value={query} onChangeText={setQuery} autoFocus placeholder="Search your fridge" placeholderTextColor={colors.textFaint} style={styles.searchInput} />
+              </View>
+            ) : null}
 
-        {SECTIONS.map((sec) => {
-          const list = grouped[sec.key];
-          if (!list.length) return null;
-          const u = urgencyColors[sec.key];
-          const collapsed = sec.key === 'expired' && !showExpired;
-          return (
-            <View key={sec.key} style={{ marginTop: space(5) }}>
-              <Pressable
-                disabled={sec.key !== 'expired'}
-                onPress={() => setShowExpired((v) => !v)}
-                style={styles.sectionHead}
-              >
-                <View style={[styles.dot, { backgroundColor: u.fg }]} />
-                <Text style={[font.h3, { color: colors.text }]}>{sec.title}</Text>
-                <Text style={styles.count}>{list.length}</Text>
-                <Text style={[font.small, { color: colors.textFaint, flex: 1 }]}>{sec.hint}</Text>
-                {sec.key === 'expired' ? <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={18} color={colors.textFaint} /> : null}
-              </Pressable>
-              {!collapsed &&
-                list.map((item) => (
-                  <ItemRow
-                    key={item.id}
-                    item={item}
-                    now={now}
-                    onPress={() => router.push(`/item/${item.id}`)}
-                    onLongPress={() => setMenuItem(item)}
-                    onSwipeRight={() => withUndo(() => useUp(item.id), `${item.displayName} marked used up 🎉`)}
-                    onSwipeLeft={() => withUndo(() => discard(item.id), `${item.displayName} thrown out`)}
-                  />
-                ))}
-            </View>
-          );
-        })}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -space(5), marginTop: space(5) }} contentContainerStyle={{ gap: 8, paddingHorizontal: space(5) }}>
+              {FILTERS.map((f) => (
+                <Chip key={f.key} label={f.label} icon={f.icon} iconBg={f.bg} selected={filter === f.key} onPress={() => setFilter(f.key)} />
+              ))}
+            </ScrollView>
+
+            {filtered.length === 0 ? (
+              <EmptyState icon="🔍" color={colors.surface} title="Nothing matches" body="Try another filter or search." />
+            ) : null}
+
+            {SECTIONS.map((sec) => {
+              const list = grouped[sec.key];
+              if (!list.length) return null;
+              const u = urgencyColors[sec.key];
+              const collapsed = sec.key === 'expired' && !showExpired;
+              return (
+                <View key={sec.key}>
+                  <SectionTitle
+                    count={list.length}
+                    right={
+                      sec.key === 'expired' ? (
+                        <Pressable onPress={() => setShowExpired((v) => !v)} hitSlop={10} style={styles.toggle}>
+                          <Text style={styles.toggleText}>{collapsed ? 'Show' : 'Hide'}</Text>
+                        </Pressable>
+                      ) : (
+                        <View style={[styles.hint, { backgroundColor: u.bg }]}><Text style={[styles.hintText, { color: u.fg }]}>{sec.hint}</Text></View>
+                      )
+                    }
+                  >
+                    {sec.title}
+                  </SectionTitle>
+                  {!collapsed &&
+                    list.map((item) => (
+                      <ItemRow
+                        key={item.id}
+                        item={item}
+                        now={now}
+                        onPress={() => router.push(`/item/${item.id}`)}
+                        onLongPress={() => setMenuItem(item)}
+                        onSwipeRight={() => withUndo(() => useUp(item.id), `${item.displayName} marked used up 🎉`)}
+                        onSwipeLeft={() => withUndo(() => discard(item.id), `${item.displayName} thrown out`)}
+                      />
+                    ))}
+                </View>
+              );
+            })}
+            <Text style={styles.gestureHint}>Swipe right when used up · left when thrown out · hold for more</Text>
+          </>
+        )}
       </ScrollView>
 
       <Sheet visible={!!menuItem} onClose={() => setMenuItem(null)} title={menuItem?.displayName}>
@@ -213,43 +247,21 @@ export default function FridgeScreen() {
   );
 }
 
-function SummaryStat({ n, label, color }: { n: number; label: string; color: string }) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontSize: 26, fontWeight: '800', color }}>{n}</Text>
-      <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 1 }}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: space(4) },
-  logo: { width: 52, height: 38 },
-  brand: { fontSize: 22, fontWeight: '800', color: colors.brand, letterSpacing: -0.4 },
-  headerBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
-  summary: {
-    flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    paddingVertical: space(4),
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  summaryDiv: { width: 1, backgroundColor: colors.border },
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    marginTop: space(4),
-    marginBottom: space(2),
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  searchInput: { flex: 1, paddingVertical: 11, fontSize: 15, color: colors.text },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
-  count: { fontSize: 13, fontWeight: '700', color: colors.textMuted, backgroundColor: colors.border, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 10, overflow: 'hidden' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: space(5) },
+  logoWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  hero: { borderRadius: radius.xl, padding: space(5), paddingTop: space(6), gap: space(3) },
+  emojiStack: { flexDirection: 'row', marginBottom: 6 },
+  emojiBubble: { width: 58, height: 58, borderRadius: 29, backgroundColor: 'rgba(255,255,255,0.75)', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: colors.butter },
+  glassPill: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.55)', borderRadius: radius.pill, paddingVertical: 8, paddingLeft: 18, paddingRight: 8, minHeight: 60, marginTop: space(2) },
+  glassTitle: { fontSize: 14, fontWeight: '800', color: colors.ink },
+  glassSub: { fontSize: 12, color: colors.inkSoft, marginTop: 1 },
+  glassBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 18, marginTop: space(4) },
+  searchInput: { flex: 1, paddingVertical: 13, fontSize: 15, color: colors.text, ...((Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) as object) },
+  hint: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
+  hintText: { fontSize: 11, fontWeight: '700' },
+  toggle: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: colors.surface },
+  toggleText: { fontSize: 12, fontWeight: '700', color: colors.ink },
+  gestureHint: { textAlign: 'center', color: colors.textFaint, fontSize: 12, marginTop: space(5) },
 });

@@ -11,7 +11,7 @@ FreshKeep is an Expo (React Native, TypeScript) app that tracks fridge items and
 - Business logic (expiry, date parsing, matching, scoring, diet filters, impact) lives in pure functions in `app/src/lib/` with Vitest tests in `app/src/lib/__tests__/`.
 - Never put the Anthropic API key in the app. All AI calls go through `/server`.
 - Hard diet/allergy rules are checked in code (`app/src/lib/meals.ts`), never trusted to the model.
-- UI tokens are in `app/src/theme.ts`: brand green `#2A5731` (from the logo), red/amber/green urgency colours. Food-safety wording is "use soon / check before eating", never "safe to eat".
+- Design system lives in `app/src/theme.ts` + `app/src/components/ui.tsx`: brand green `#2A5731` (from the logo) with a lime action colour `#C8E86E`, ink `#13221A`, soft sage background; Anton display type (uppercase) for headings, system font for body; colour-blocked hero cards (`categoryColor`, butter/mint/lilac/peach/sky), pill buttons, circular icon buttons, floating dark tab bar (`components/TabBar.tsx`). Red/amber/green urgency colours stay separate from brand colours. Food-safety wording is "use soon / check before eating", never "safe to eat".
 - After each change run `npm run typecheck` and `npm test` in both `app/` and `server/`.
 
 ## Deliberate MVP deviations from the PRD

@@ -1,3 +1,4 @@
+import { Anton_400Regular, useFonts } from '@expo-google-fonts/anton';
 import { router } from 'expo-router';
 import { Stack } from 'expo-router/stack';
 import { StatusBar } from 'expo-status-bar';
@@ -38,6 +39,7 @@ function useNudgeScheduling() {
 
 export default function RootLayout() {
   const hydrated = useStore((s) => s.hydrated);
+  const [fontsLoaded, fontError] = useFonts({ Anton_400Regular });
   useNudgeScheduling();
   useEffect(() => {
     // Safety net: never leave the spinner up if storage never answers.
@@ -45,7 +47,7 @@ export default function RootLayout() {
     return () => clearTimeout(t);
   }, []);
 
-  const content = !hydrated ? (
+  const content = !hydrated || (!fontsLoaded && !fontError) ? (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
       <ActivityIndicator color={colors.brand} />
     </View>
@@ -89,6 +91,7 @@ const web = StyleSheet.create({
     width: '100%',
     maxWidth: 430,
     maxHeight: 932,
+    borderRadius: 28,
     backgroundColor: colors.bg,
     overflow: 'hidden',
     ...(Platform.OS === 'web' ? ({ boxShadow: '0 10px 40px rgba(24,36,27,0.18)' } as object) : {}),

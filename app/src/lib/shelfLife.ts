@@ -29,7 +29,7 @@ export const SHELF_LIFE_RULES: Record<Category, ShelfLifeRule> = {
 export const CATEGORY_EMOJI: Record<Category, string> = {
   milk: '🥛', uht_milk: '🧃', curd_yogurt: '🥣', paneer: '🧀', cheese: '🧀', butter_ghee: '🧈', cream: '🍶',
   eggs: '🥚', bread: '🍞', batter: '🫓', leafy_veg: '🥬', vegetables: '🥕', fruits: '🍎', meat: '🍗',
-  fish: '🐟', tofu: '⬜', sauces_condiments: '🫙', beverages: '🧃', ready_to_eat: '🥡', leftovers: '🍲', other: '📦',
+  fish: '🐟', tofu: '🫘', sauces_condiments: '🫙', beverages: '🧃', ready_to_eat: '🥡', leftovers: '🍲', other: '📦',
 };
 
 export const ALL_CATEGORIES = Object.keys(SHELF_LIFE_RULES) as Category[];
@@ -37,7 +37,7 @@ export const ALL_CATEGORIES = Object.keys(SHELF_LIFE_RULES) as Category[];
 const NAME_EMOJI: [RegExp, string][] = [
   [/tomato/i, '🍅'], [/banana/i, '🍌'], [/onion/i, '🧅'], [/potato|aloo/i, '🥔'], [/coriander|dhania|mint|pudina|curry leaves/i, '🌿'],
   [/capsicum|bell pepper/i, '🫑'], [/lemon|lime/i, '🍋'], [/apple/i, '🍎'], [/cucumber/i, '🥒'], [/mushroom/i, '🍄'], [/carrot/i, '🥕'],
-  [/chilli|chili/i, '🌶️'], [/garlic/i, '🧄'], [/ginger/i, '🫚'], [/mango/i, '🥭'], [/grape/i, '🍇'], [/orange/i, '🍊'], [/broccoli|cauliflower|gobi/i, '🥦'],
+  [/chilli|chili/i, '🌶️'], [/garlic/i, '🧄'], [/ginger/i, '🫚'], [/mango/i, '🥭'], [/grape/i, '🍇'], [/orange/i, '🍊'], [/broccoli|cauliflower|gobi/i, '🥦'], [/bhindi|okra|lauki|gourd|beans|peas/i, '🫛'], [/methi|spinach|palak/i, '🥬'], [/tofu/i, '🫘'], [/batter/i, '🫓'],
   [/corn/i, '🌽'], [/brinjal|eggplant/i, '🍆'], [/strawberr/i, '🍓'], [/watermelon/i, '🍉'], [/coconut/i, '🥥'], [/chicken/i, '🍗'], [/prawn|shrimp/i, '🦐'],
 ];
 
