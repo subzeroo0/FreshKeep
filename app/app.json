@@ -1,0 +1,83 @@
+{
+  "expo": {
+    "name": "FreshKeep",
+    "slug": "freshkeep",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.freshkeep.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "FreshKeep uses the camera to scan barcodes on groceries.",
+        "NSPhotoLibraryUsageDescription": "FreshKeep reads grocery order screenshots you pick."
+      }
+    },
+    "android": {
+      "package": "com.freshkeep.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#F7F5EF",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "CAMERA",
+        "POST_NOTIFICATIONS",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "name": "FreshKeep",
+      "themeColor": "#2A5731",
+      "backgroundColor": "#F7F5EF"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "asyncRoutes": false
+        }
+      ],
+      "expo-font",
+      "expo-image",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#F7F5EF"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "FreshKeep uses the camera to scan barcodes on groceries.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "FreshKeep reads grocery order screenshots you pick."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#2A5731"
+        }
+      ]
+    ],
+    "scheme": "freshkeep",
+    "backgroundColor": "#F7F5EF",
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
