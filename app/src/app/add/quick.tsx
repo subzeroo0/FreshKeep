@@ -166,7 +166,7 @@ export default function QuickAdd() {
                 </View>
                 <Button title={showDate ? 'Hide' : 'Set date'} small variant="secondary" onPress={() => setShowDate((v) => !v)} />
               </View>
-              {showDate ? <View style={{ marginTop: space(4) }}><DateInput value={expiry} onChange={setExpiry} label="Date (optional)" /></View> : null}
+              {showDate ? <View style={{ marginTop: space(4) }}><DateInput value={expiry} onChange={setExpiry} label="Date (optional)" category={category} /></View> : null}
             </Card>
           </>
         ) : null}

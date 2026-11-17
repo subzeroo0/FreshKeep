@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { cors } from 'hono/cors';
 import type { z } from 'zod';
 
@@ -12,6 +13,7 @@ import {
 
 export const app = new Hono();
 app.use('*', cors());
+app.use('/ai/*', bodyLimit({ maxSize: 12 * 1024 * 1024, onError: (c) => c.json({ error: 'Images too large — send up to 5 screenshots at 1280 px' }, 413) }));
 
 async function body<S extends z.ZodType>(c: { req: { json: () => Promise<unknown> } }, schema: S): Promise<z.infer<S>> {
   const raw = await c.req.json().catch(() => {
@@ -80,6 +82,7 @@ app.post('/ai/parse-order', async (c) => {
     content: [...images.map(imageBlock), { type: 'text', text: 'List the platform, order date if visible (ISO), and every line item.' }],
     schema: ParseOrderOut,
     maxTokens: 12000,
+    timeoutMs: 60_000,
   });
   return c.json({
     platform: out.platform,
@@ -110,6 +113,7 @@ app.post('/ai/suggest-meals', async (c) => {
     content: [{ type: 'text', text: user }],
     schema: SuggestMealsOut,
     maxTokens: 16000,
+    timeoutMs: 60_000,
   });
   // The app re-checks every hard rule (diet, allergy, time, equipment) in code; here we only drop unknown item ids.
   const ids = new Set(items.map((i) => i.id));

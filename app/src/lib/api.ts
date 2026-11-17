@@ -11,7 +11,7 @@ export class ApiOffline extends Error {
   }
 }
 
-async function call<T>(path: string, init?: RequestInit, timeoutMs = 25000): Promise<T> {
+async function call<T>(path: string, init?: RequestInit, timeoutMs = 40000): Promise<T> {
   const base = useStore.getState().apiUrl;
   if (!base) throw new ApiOffline();
   const ctrl = new AbortController();
@@ -25,6 +25,10 @@ async function call<T>(path: string, init?: RequestInit, timeoutMs = 25000): Pro
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error((body as { error?: string }).error ?? `Request failed (${res.status})`);
     return body as T;
+  } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError') throw new Error('The server took too long to answer');
+    if (e instanceof TypeError) throw new Error('Can’t reach the FreshKeep server — check the connection');
+    throw e;
   } finally {
     clearTimeout(t);
   }
@@ -49,9 +53,9 @@ export const api = {
       platform: Platform;
       orderedAt?: string;
       lines: { rawText: string; name: string; packSize?: string; quantity: number; pricePaise?: number; categoryGuess: Category; isFood: boolean }[];
-    }>('/ai/parse-order', { method: 'POST', body: JSON.stringify({ images }) }, 45000),
+    }>('/ai/parse-order', { method: 'POST', body: JSON.stringify({ images }) }, 90000),
 
   suggestMeals: (profile: Omit<UserProfile, 'name' | 'city' | 'id'>, items: { id: string; name: string; quantity: string; daysLeft: number }[], date: string, slots: Slot[]) =>
     call<{ meals: (Omit<MealSuggestion, 'id' | 'date' | 'rescueScore' | 'status' | 'usesItems'> & { usesItems: { itemId: string; amount: string; fraction: number }[] })[] }>(
-      '/ai/suggest-meals', { method: 'POST', body: JSON.stringify({ profile, items, date, slots }) }, 45000),
+      '/ai/suggest-meals', { method: 'POST', body: JSON.stringify({ profile, items, date, slots }) }, 90000),
 };

@@ -250,3 +250,35 @@ describe('impact', () => {
     expect(computeImpact(buildDemoEvents(TODAY), '2026-11').rescued).toBeGreaterThan(10);
   });
 });
+
+// ---------- M8 read-date normalisation (server reply → app date) ----------
+import { vi } from 'vitest';
+vi.mock('../api', () => ({ api: { readDate: vi.fn() } }));
+import { api } from '../api';
+import { readDateFromPhoto } from '../readDate';
+
+describe('readDateFromPhoto', () => {
+  const photo = { uri: 'x', base64: 'y' };
+  const mock = api.readDate as unknown as ReturnType<typeof vi.fn>;
+  const inFuture = addDays(new Date().toISOString().slice(0, 10), 120);
+
+  it('accepts a clear ISO date', async () => {
+    mock.mockResolvedValueOnce({ rawText: 'EXP', dateType: 'expiry', isoDate: inFuture, unsure: false });
+    expect(await readDateFromPhoto(photo, 'milk')).toMatchObject({ isoDate: inFuture, unsure: false });
+  });
+  it('computes best-before-N-months from the packed date', async () => {
+    const packed = addDays(new Date().toISOString().slice(0, 10), -10);
+    mock.mockResolvedValueOnce({ rawText: 'BB 6 months', dateType: 'best_before', bestBeforeMonths: 6, packedDate: packed, unsure: false });
+    const r = await readDateFromPhoto(photo);
+    expect(r.isoDate).toBeDefined();
+    expect(daysBetween(packed, r.isoDate!)).toBeGreaterThan(170);
+  });
+  it('flags implausible dates as unsure', async () => {
+    mock.mockResolvedValueOnce({ rawText: 'EXP 2035', dateType: 'expiry', isoDate: '2035-01-01', unsure: false });
+    expect((await readDateFromPhoto(photo)).unsure).toBe(true);
+  });
+  it('falls back to parsing the raw text', async () => {
+    mock.mockResolvedValueOnce({ rawText: `EXP ${inFuture.slice(8, 10)}/${inFuture.slice(5, 7)}/${inFuture.slice(2, 4)}`, dateType: 'expiry', unsure: true });
+    expect(await readDateFromPhoto(photo)).toMatchObject({ isoDate: inFuture, unsure: true });
+  });
+});

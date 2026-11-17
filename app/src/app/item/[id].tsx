@@ -159,7 +159,7 @@ export default function ItemDetail() {
       </Screen>
 
       <Sheet visible={dateSheet} onClose={() => setDateSheet(false)} title="Enter the printed date">
-        <DateInput value={newDate} onChange={setNewDate} />
+        <DateInput value={newDate} onChange={setNewDate} category={item.category} />
         <View style={{ flexDirection: 'row', gap: 10, marginTop: space(4) }}>
           {item.printedExpiry ? (
             <Button title="Clear" variant="outline" style={{ flex: 1 }} onPress={() => { setPrintedDate(item.id, undefined); setDateSheet(false); }} />

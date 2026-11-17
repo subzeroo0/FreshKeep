@@ -2,13 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { ReactNode, useMemo, useState } from 'react';
 import {
-  ActivityIndicator, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle,
+  ActivityIndicator, Platform, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { addDays, formatDate, today as todayISO } from '../lib/dates';
 import { parseDate } from '../lib/dateParser';
-import type { ExpiryConfidence } from '../lib/types';
+import { takePhoto, type PhotoSource } from '../lib/photos';
+import { readDateFromPhoto, type DateRead } from '../lib/readDate';
+import type { Category, ExpiryConfidence } from '../lib/types';
+import { useStore } from '../store/useStore';
 import { colors, confidenceColors, font, radius, shadow, space } from '../theme';
 
 export type IconName = keyof typeof Ionicons.glyphMap;
@@ -199,10 +202,25 @@ export function EmptyState({ icon, title, body, action }: { icon: string; title:
  * Manual expiry entry (camera date-reading is bypassed for the investor demo).
  * Accepts any printed format the parser understands, plus quick chips.
  */
-export function DateInput({ value, onChange, label = 'Expiry date (as printed on the pack)' }: {
-  value?: string; onChange: (iso: string | undefined) => void; label?: string;
+export function DateInput({ value, onChange, label = 'Expiry date (as printed on the pack)', category }: {
+  value?: string; onChange: (iso: string | undefined) => void; label?: string; category?: Category;
 }) {
   const [text, setText] = useState('');
+  const apiUrl = useStore((s) => s.apiUrl);
+  const [scan, setScan] = useState<{ busy?: boolean; read?: DateRead; error?: string }>({});
+  const scanDate = async (source: PhotoSource) => {
+    try {
+      const photo = await takePhoto(source);
+      if (!photo) return;
+      setScan({ busy: true });
+      const read = await readDateFromPhoto(photo, category);
+      setScan({ read });
+      setText('');
+      if (read.isoDate && !read.unsure) onChange(read.isoDate);
+    } catch (e) {
+      setScan({ error: e instanceof Error ? e.message : 'Couldn’t read the date' });
+    }
+  };
   const parsed = useMemo(() => (text.trim() ? parseDate(text) : undefined), [text]);
   const now = todayISO();
   const quick = [
@@ -212,6 +230,28 @@ export function DateInput({ value, onChange, label = 'Expiry date (as printed on
   return (
     <View>
       <Text style={styles.label}>{label}</Text>
+      {apiUrl ? (
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+          <Button small title="Scan date" icon="camera-outline" loading={scan.busy} onPress={() => scanDate('camera')} style={{ flex: 1 }} />
+          <Button small title="From photo" icon="image-outline" variant="secondary" disabled={scan.busy} onPress={() => scanDate('library')} style={{ flex: 1 }} />
+        </View>
+      ) : null}
+      {scan.read ? (
+        <View style={[styles.parsedRow, { marginTop: 0, marginBottom: 10 }, (scan.read.unsure || !scan.read.isoDate) && { backgroundColor: colors.warnSoft }]}>
+          <Ionicons name={scan.read.isoDate && !scan.read.unsure ? 'checkmark-circle' : 'alert-circle'} size={18} color={scan.read.isoDate && !scan.read.unsure ? colors.ok : colors.warn} />
+          <Text style={{ flex: 1, color: colors.text }}>
+            <Text style={{ fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }) }}>“{scan.read.rawText}”</Text>
+            {scan.read.isoDate ? <Text> → <Text style={{ fontWeight: '700' }}>{formatDate(scan.read.isoDate)}</Text></Text> : null}
+            {scan.read.unsure ? `  · ${scan.read.reason ?? 'please check'}` : ''}
+          </Text>
+          {scan.read.isoDate && scan.read.unsure ? (
+            <Pressable onPress={() => onChange(scan.read!.isoDate)}>
+              <Text style={{ color: colors.brand, fontWeight: '700' }}>Use it</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+      {scan.error ? <Muted style={{ color: colors.danger, marginBottom: 8 }}>{scan.error}</Muted> : null}
       <TextInput
         value={text}
         onChangeText={(s) => {

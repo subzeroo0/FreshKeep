@@ -8,7 +8,7 @@ import { colors, font, radius } from '../../theme';
 // M1 — the Add sheet: Scan item, Import order, Quick add.
 export default function AddSheet() {
   const insets = useSafeAreaInsets();
-  const go = (path: '/add/scan' | '/add/import' | '/add/quick') => {
+  const go = (path: '/add/scan' | '/add/import' | '/add/quick' | '/add/product?photo=1') => {
     router.back();
     setTimeout(() => router.push(path), 10);
   };
@@ -20,6 +20,7 @@ export default function AddSheet() {
         <Text style={{ color: colors.textMuted, marginTop: 4, marginBottom: 12 }}>Every item gets a date — even if you don’t enter one.</Text>
         <SheetAction icon="receipt-outline" label="Import order" sub="Blinkit, Instamart or Zepto screenshot" onPress={() => go('/add/import')} />
         <SheetAction icon="barcode-outline" label="Scan item" sub="Barcode, then the expiry date" onPress={() => go('/add/scan')} />
+        <SheetAction icon="camera-outline" label="Photo of a product" sub="No barcode? Snap the pack and we’ll identify it" onPress={() => go('/add/product?photo=1')} />
         <SheetAction icon="flash-outline" label="Quick add" sub="Loose veg, fruit, batter or leftovers" onPress={() => go('/add/quick')} />
       </Pressable>
     </Pressable>

@@ -3,9 +3,11 @@ name: Android APK
 # Builds an installable FreshKeep APK (no Expo account or signing keys needed — it is
 # signed with the debug key, fine for demos and side-loading). Download it from the run's
 # "Artifacts" section.
+# The APK talks to the AI server at the repo variable FRESHKEEP_API_URL
+# (Settings → Secrets and variables → Actions → Variables). Without it the app runs offline.
 on:
   push:
-    paths: ['app/**', '.github/workflows/android-apk.yml']
+    paths: ['app/**', 'server/**', '.github/workflows/android-apk.yml']
   workflow_dispatch:
 
 concurrency:
@@ -13,6 +15,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -40,6 +58,7 @@ jobs:
         working-directory: app/android
         env:
           NODE_ENV: production
+          EXPO_PUBLIC_API_URL: ${{ vars.FRESHKEEP_API_URL }}
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
       - uses: actions/upload-artifact@v4
         with:

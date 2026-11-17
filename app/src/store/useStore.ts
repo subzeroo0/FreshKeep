@@ -129,7 +129,7 @@ const initial = {
   cookedMeals: [] as MealSuggestion[],
   mealCache: undefined as MealCache | undefined,
   inventoryVersion: 0,
-  apiUrl: process.env.EXPO_PUBLIC_API_URL ?? '',
+  apiUrl: (process.env.EXPO_PUBLIC_API_URL ?? '').trim().replace(/\/$/, ''),
   demoMode: false,
 };
 
@@ -324,6 +324,11 @@ export const useStore = create<State>()(
       version: 1,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: ({ hydrated, ...rest }) => rest,
+      // A server URL baked into the build (EXPO_PUBLIC_API_URL) applies unless the user set one.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<State>;
+        return { ...current, ...p, apiUrl: p.apiUrl || current.apiUrl };
+      },
       // Mark hydrated even if storage is unavailable (private window, blocked site data) so the app still opens.
       onRehydrateStorage: () => () => {
         setTimeout(() => useStore.setState({ hydrated: true }), 0);

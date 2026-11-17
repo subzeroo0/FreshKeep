@@ -1,0 +1,17 @@
+# One-click deploy of the FreshKeep API on Render (Dashboard → New → Blueprint → pick this repo).
+# Render asks for ANTHROPIC_API_KEY during setup; it is stored only in Render.
+services:
+  - type: web
+    name: freshkeep-api
+    runtime: docker
+    rootDir: server
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-sonnet-5-5
+      - key: OFF_USER_AGENT
+        value: FreshKeep/0.1 (demo)

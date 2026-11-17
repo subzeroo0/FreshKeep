@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -30,6 +30,12 @@ export default function ProfileScreen() {
   const [url, setUrl] = useState(apiUrl);
   const [checking, setChecking] = useState(false);
   const [name, setName] = useState(profile.name ?? '');
+  const [status, setStatus] = useState<'checking' | 'ai' | 'nokey' | 'down' | undefined>();
+  useEffect(() => {
+    if (!apiUrl) return setStatus(undefined);
+    setStatus('checking');
+    api.health().then((h) => setStatus(h.ai ? 'ai' : 'nokey')).catch(() => setStatus('down'));
+  }, [apiUrl]);
 
   const summary: Record<StepId, string> = {
     household: `${profile.householdSize} ${profile.householdSize === 1 ? 'person' : 'people'} · ${(['breakfast', 'lunch', 'dinner'] as const).filter((m) => profile.mealsAtHome[m]).join(', ') || 'no meals'}`,
@@ -47,8 +53,10 @@ export default function ProfileScreen() {
     setChecking(true);
     try {
       const h = await api.health();
+      setStatus(h.ai ? 'ai' : 'nokey');
       toast(h.ai ? 'Connected — AI features on ✨' : 'Connected, but the server has no API key yet');
     } catch (e) {
+      setStatus('down');
       toast(`Couldn’t reach the server: ${e instanceof Error ? e.message : 'error'}`);
     } finally {
       setChecking(false);
@@ -107,8 +115,16 @@ export default function ProfileScreen() {
             style={styles.input}
           />
           <Button title={apiUrl ? 'Save & test' : 'Connect'} small loading={checking} onPress={checkServer} style={{ marginTop: 10 }} />
-          <Text style={{ marginTop: 10, fontSize: 12, color: apiUrl ? colors.ok : colors.textMuted, fontWeight: '600' }}>
-            {apiUrl ? `● Using ${apiUrl}` : '○ Offline mode — demo recipes and manual entry'}
+          <Text style={{ marginTop: 10, fontSize: 12, fontWeight: '600', color: status === 'ai' ? colors.ok : status === 'down' ? colors.danger : status === 'nokey' ? colors.warn : colors.textMuted }}>
+            {!apiUrl
+              ? '○ Offline mode — demo recipes and manual entry'
+              : status === 'ai'
+                ? `● Connected · AI on · ${apiUrl}`
+                : status === 'nokey'
+                  ? `● Connected, but the server has no ANTHROPIC_API_KEY`
+                  : status === 'down'
+                    ? `● Can’t reach ${apiUrl} (a free server may take ~50 s to wake up — tap Save & test again)`
+                    : `○ Checking ${apiUrl}…`}
           </Text>
         </Card>
 

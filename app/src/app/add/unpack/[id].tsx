@@ -49,7 +49,7 @@ export default function Unpack() {
             </View>
             {open === i.id ? (
               <View style={{ marginTop: space(4) }}>
-                <DateInput value={date} onChange={setDate} />
+                <DateInput value={date} onChange={setDate} category={i.category} />
                 <Button title="Save date" disabled={!date} style={{ marginTop: space(3) }} onPress={() => {
                   setPrintedDate(i.id, date);
                   setOpen(null);

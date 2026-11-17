@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -11,6 +10,7 @@ import { SAMPLE_ORDER } from '../../data/demo';
 import { api, ApiOffline } from '../../lib/api';
 import { addDays, today as todayISO } from '../../lib/dates';
 import { buildOrderLines } from '../../lib/orderLines';
+import { pickScreenshots, takePhoto, type Photo } from '../../lib/photos';
 import type { Platform } from '../../lib/types';
 import { allProducts, useStore } from '../../store/useStore';
 import { colors, font, radius, space } from '../../theme';
@@ -28,20 +28,30 @@ export default function ImportOrder() {
   const { createOrder } = useStore();
   const products = useStore((s) => s.products);
   const apiUrl = useStore((s) => s.apiUrl);
-  const [images, setImages] = useState<{ uri: string; base64?: string | null }[]>([]);
+  const [images, setImages] = useState<Photo[]>([]);
+  const [pickError, setPickError] = useState<string | undefined>();
   const [platform, setPlatform] = useState<Platform>('blinkit');
   const [delivered, setDelivered] = useState(0);
   const [busy, setBusy] = useState(false);
 
   const pick = async () => {
-    const r = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      selectionLimit: 5,
-      quality: 0.7,
-      base64: true,
-    });
-    if (!r.canceled) setImages(r.assets.slice(0, 5).map((a) => ({ uri: a.uri, base64: a.base64 })));
+    setPickError(undefined);
+    try {
+      const shots = await pickScreenshots(5);
+      if (shots.length) setImages(shots);
+    } catch (e) {
+      setPickError(e instanceof Error ? e.message : 'Couldn’t open those images');
+    }
+  };
+
+  const snap = async () => {
+    setPickError(undefined);
+    try {
+      const shot = await takePhoto('camera');
+      if (shot) setImages((prev) => [...prev, shot].slice(0, 5));
+    } catch (e) {
+      setPickError(e instanceof Error ? e.message : 'Couldn’t take the photo');
+    }
   };
 
   const useSample = () => {
@@ -56,8 +66,8 @@ export default function ImportOrder() {
     const deliveredAt = addDays(todayISO(), -delivered);
     setBusy(true);
     try {
-      const imgs = images.map((i) => i.base64).filter(Boolean) as string[];
-      const res = await api.parseOrder(imgs);
+      const res = await api.parseOrder(images.map((i) => i.base64));
+      if (!res.lines.length) throw new Error('No items found in the screenshot — try a clearer one, or add them below.');
       const id = createOrder(
         { platform: res.platform ?? platform, orderedAt: res.orderedAt, deliveredAt, status: 'review', imageUri: images[0]?.uri },
         buildOrderLines(res.lines, allProducts(products)),
@@ -66,7 +76,7 @@ export default function ImportOrder() {
     } catch (e) {
       // No AI server yet (or it failed): keep the screenshot and let the user type the lines.
       const id = createOrder({ platform, deliveredAt, status: 'review', imageUri: images[0]?.uri }, []);
-      if (!(e instanceof ApiOffline)) toast('Couldn’t read the screenshot automatically — add the items below.');
+      if (!(e instanceof ApiOffline)) toast(e instanceof Error ? e.message : 'Couldn’t read the screenshot', 'Add the items by hand');
       router.replace({ pathname: '/add/review/[id]', params: { id, manual: '1' } });
     } finally {
       setBusy(false);
@@ -87,7 +97,7 @@ export default function ImportOrder() {
           <Card style={{ alignItems: 'center', padding: space(8) }}>
             <ActivityIndicator color={colors.brand} size="large" />
             <Text style={[font.h3, { color: colors.text, marginTop: space(4) }]}>Reading your order…</Text>
-            <Muted>Finding every food item and its delivery date</Muted>
+            <Muted>Finding every food item and its price — this takes 10–30 seconds</Muted>
           </Card>
         ) : null}
 
@@ -114,12 +124,16 @@ export default function ImportOrder() {
             </Pressable>
           </ScrollView>
         ) : (
-          <Pressable onPress={pick} style={styles.drop}>
-            <Ionicons name="images-outline" size={34} color={colors.brand} />
-            <Text style={{ fontWeight: '700', color: colors.text, marginTop: 8 }}>Pick screenshots</Text>
-            <Muted style={{ textAlign: 'center', marginTop: 4 }}>Up to 5 for long orders. Open your order in Blinkit, Instamart or Zepto and screenshot the item list.</Muted>
-          </Pressable>
+          <View style={{ gap: 10 }}>
+            <Pressable onPress={pick} style={styles.drop}>
+              <Ionicons name="images-outline" size={34} color={colors.brand} />
+              <Text style={{ fontWeight: '700', color: colors.text, marginTop: 8 }}>Pick screenshots</Text>
+              <Muted style={{ textAlign: 'center', marginTop: 4 }}>Up to 5 for long orders. Open your order in Blinkit, Instamart or Zepto and screenshot the item list.</Muted>
+            </Pressable>
+            <Button title="Take a photo of a receipt or bill" icon="camera-outline" variant="outline" onPress={snap} />
+          </View>
         )}
+        {pickError ? <Muted style={{ color: colors.danger, marginTop: 8 }}>{pickError}</Muted> : null}
 
         {images.length ? (
           <>

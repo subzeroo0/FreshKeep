@@ -178,7 +178,7 @@ export default function ReviewOrder() {
                 ))}
               </View>
             </View>
-            <DateInput value={draft.printedExpiry} onChange={(printedExpiry) => setDraft({ ...draft, printedExpiry })} label="Expiry (optional — we estimate if blank)" />
+            <DateInput value={draft.printedExpiry} onChange={(printedExpiry) => setDraft({ ...draft, printedExpiry })} label="Expiry (optional — we estimate if blank)" category={draft.category} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <Button title="Cancel" variant="outline" style={{ flex: 1 }} onPress={() => setDraft(null)} />
               <Button title={draft.id ? 'Save' : 'Add item'} style={{ flex: 1.5 }} disabled={draft.name.trim().length < 2} onPress={saveDraft} />

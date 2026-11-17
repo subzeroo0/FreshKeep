@@ -3,7 +3,7 @@ import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import type { z } from 'zod';
 
 // All Claude calls go through here: JSON-only structured output validated against a Zod schema,
-// one retry with the validation error included, 20-second timeout, refusal fallback on.
+// one retry with the validation error included, 20-second timeout (60 s for multi-image orders and meal plans), refusal fallback on.
 
 const MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-5-5';
 let client: Anthropic | null = null;
@@ -35,6 +35,7 @@ export async function askJson<S extends z.ZodType>(opts: {
   content: Anthropic.Beta.BetaContentBlockParam[];
   schema: S;
   maxTokens?: number;
+  timeoutMs?: number;
 }): Promise<z.infer<S>> {
   if (!hasKey()) throw new AiError('Server has no Claude API key configured', 503);
   const started = Date.now();
@@ -52,7 +53,7 @@ export async function askJson<S extends z.ZodType>(opts: {
         output_config: { effort: 'low', format: betaZodOutputFormat(opts.schema) },
         system: opts.system,
         messages: [{ role: 'user', content }],
-      });
+      }, { timeout: opts.timeoutMs ?? 20_000 });
       // Cost tracking: request time and token use (no images or user data are logged or stored).
       console.log(JSON.stringify({ task: opts.task, ms: Date.now() - started, model: res.model, in: res.usage.input_tokens, out: res.usage.output_tokens, stop: res.stop_reason }));
       if (res.stop_reason === 'refusal') throw new AiError('The model declined this request', 422);
@@ -69,7 +70,7 @@ export async function askJson<S extends z.ZodType>(opts: {
       }
       if (e instanceof Anthropic.AuthenticationError) throw new AiError('Server API key is invalid', 503);
       if (e instanceof Anthropic.RateLimitError) throw new AiError('AI is busy — try again in a minute', 503);
-      if (e instanceof Anthropic.APIConnectionTimeoutError) throw new AiError('AI took too long (20 s timeout)', 502);
+      if (e instanceof Anthropic.APIConnectionTimeoutError) throw new AiError(`AI took too long (${Math.round((opts.timeoutMs ?? 20_000) / 1000)} s timeout)`, 502);
       if (e instanceof Anthropic.APIError) throw new AiError(`AI error ${e.status ?? ''}: ${e.message}`, 502);
       // JSON / schema validation failure from the parse helper → retry once with the error.
       lastError = e instanceof Error ? e.message.slice(0, 400) : String(e);

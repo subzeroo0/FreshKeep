@@ -27,7 +27,7 @@ cd app
 npm install
 npx expo start          # scan the QR code with Expo Go (Android/iOS)
 npm run web             # or open in a browser
-npm test                # 38 logic tests
+npm test                # 42 logic tests
 ```
 
 ### Install on Android (APK)
@@ -35,14 +35,28 @@ Every push that touches `app/` runs **Actions → Android APK**. Open the run an
 
 You can also use EAS: `npx eas-cli build -p android --profile preview` (needs an Expo account).
 
-### AI server (optional)
-```bash
-cd server
-cp .env.example .env    # add ANTHROPIC_API_KEY
-npm install
-npm run dev             # http://localhost:8787
-```
-In the app, go to **Profile → AI server** and paste the server URL. A phone can't use `localhost`, so deploy the server (Railway, Render or Vercel) or use your machine's LAN IP. Once it's connected, order screenshots are read automatically, unknown products are identified from a photo, and meals come from Claude. The app re-checks every diet and allergy rule in code.
+### Connect your Claude API key (real AI results)
+The key lives only on the server. It never goes into the app or the repo.
+
+1. **Deploy the server (about 5 min, free).** Sign in at [render.com](https://render.com) with GitHub → **New → Blueprint** → pick this repo and the branch `claude/peaceful-albattani-xjjw47`. Render reads `render.yaml` and asks for **ANTHROPIC_API_KEY**: paste your key there → **Apply**. When it's live, copy the URL, for example `https://freshkeep-api-xxxx.onrender.com`. Opening `<url>/health` should show `{"ok":true,"ai":true}`.
+   *Railway or Fly.io work too: point them at `server/` and they'll use its `Dockerfile`. Set the same env var.*
+2. **Point the app at it.** Either:
+   - **Bake it into the APK:** GitHub → repo **Settings → Secrets and variables → Actions → Variables → New variable**, name `FRESHKEEP_API_URL`, value = the server URL. Then **Actions → Android APK → Run workflow**. Every APK built after that connects on its own.
+   - **Or set it on the phone:** **Profile → AI server**, paste the URL → **Save & test**. It should say "Connected · AI on".
+3. Render's free plan sleeps after 15 minutes idle, and the first request can take ~50 s to wake it. Open `/health` a minute before a demo.
+
+**What turns on with the server**
+| Where | What happens |
+|---|---|
+| Add → Import order | Pick up to 5 screenshots from Blinkit / Instamart / Zepto (or photograph a bill). Claude reads every line, price and quantity; you review, then they go in the fridge with dates |
+| Add → Photo of a product | Snap the front of any pack, and Claude fills in name, brand, size, veg mark and category |
+| Scan item → unknown barcode | Open Food Facts lookup first, then a photo of the pack if it's still unknown |
+| Any date field | **Scan date** / **From photo**: Claude reads the printed date. You see the exact text it read ("EXP 12/03/27 → 12 Mar 2027") and confirm it |
+| Meals | Claude plans breakfast, lunch and dinner from your fridge; the app still enforces every diet/allergy rule in code |
+
+The web prototype link stays offline: browsers block calls to outside servers from inside an artifact. Use the APK or Expo Go for AI features.
+
+Run the server locally: `cd server && cp .env.example .env` (add the key), `npm install && npm run dev`.
 
 ## Demo script (5 min)
 1. **Impact**: the seeded month shows ₹ rescued vs wasted.
