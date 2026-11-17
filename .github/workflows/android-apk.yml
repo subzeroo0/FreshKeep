@@ -14,6 +14,9 @@ concurrency:
   group: apk-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write # publish the APK as a GitHub Release
+
 jobs:
   server:
     runs-on: ubuntu-latest
@@ -65,3 +68,21 @@ jobs:
           name: freshkeep-apk
           path: app/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+      - name: Name the APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk FreshKeep.apk
+      # Each build becomes a release; the newest is always at
+      # https://github.com/<owner>/<repo>/releases/latest/download/FreshKeep.apk
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-build-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: FreshKeep for Android (build ${{ github.run_number }})
+          make_latest: true
+          files: app/FreshKeep.apk
+          body: |
+            **Download:** FreshKeep.apk below. On the Android phone, open it and allow "Install unknown apps" when asked.
+
+            Built from `${{ github.ref_name }}` at ${{ github.sha }}.
+            Signed with a debug key — for demos and testing, not the Play Store.
+            AI server: ${{ vars.FRESHKEEP_API_URL || 'not built in (set it in Profile → AI server)' }}

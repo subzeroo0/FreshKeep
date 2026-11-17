@@ -31,7 +31,7 @@ npm test                # 42 logic tests
 ```
 
 ### Install on Android (APK)
-Every push that touches `app/` runs **Actions → Android APK**. Open the run and download `freshkeep-apk` from the run's **Artifacts** section. Unzip it and install `app-release.apk` on the phone (you'll need to allow installs from unknown sources). The APK is signed with the debug key, which is fine for demos.
+**Download the latest build:** https://github.com/subzeroo0/FreshKeep/releases/latest/download/FreshKeep.apk (every push that touches `app/` or `server/` publishes a new release; all builds are under **Releases**). Open it on an Android phone and allow installs from unknown sources. The APK is signed with the debug key, which is fine for demos.
 
 You can also use EAS: `npx eas-cli build -p android --profile preview` (needs an Expo account).
 
