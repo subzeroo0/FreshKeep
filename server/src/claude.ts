@@ -65,8 +65,14 @@ export async function askJson<S extends z.ZodType>(opts: {
     } catch (e) {
       if (e instanceof AiError) throw e;
       if (e instanceof Anthropic.BadRequestError) {
-        lastError = e.message;
-        throw new AiError(`Could not process the image or request: ${e.message}`, 422);
+        const imageProblem = /image/i.test(e.message);
+        console.warn(JSON.stringify({ task: opts.task, error: e.message.slice(0, 300) }));
+        throw new AiError(
+          imageProblem
+            ? 'Couldn’t read that image — try a clearer photo or a different screenshot.'
+            : 'The AI couldn’t process this request. Try again, or enter the details by hand.',
+          422,
+        );
       }
       if (e instanceof Anthropic.AuthenticationError) throw new AiError('Server API key is invalid', 503);
       if (e instanceof Anthropic.RateLimitError) throw new AiError('AI is busy — try again in a minute', 503);
