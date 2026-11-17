@@ -91,7 +91,7 @@ export default function ReviewOrder() {
     else router.dismissTo('/');
   };
 
-  const shot = order.imageUri === 'sample' ? require('../../../../assets/sample-order.png') : order.imageUri ? { uri: order.imageUri } : null;
+  const shot = order.imageUri ? { uri: order.imageUri } : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>

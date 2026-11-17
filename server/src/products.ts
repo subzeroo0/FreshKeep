@@ -1,12 +1,6 @@
-// GET /products/:barcode — seed catalogue first, then Open Food Facts (patchy for Indian SKUs).
+// GET /products/:barcode — Open Food Facts (patchy for Indian SKUs; the app then asks for a photo).
 
 type Category = string;
-
-const SEED: Record<string, { name: string; brand?: string; packSize?: string; category: Category; vegMark?: 'veg' | 'non_veg'; allergens: string[] }> = {
-  '8901262010016': { name: 'Amul Taaza Toned Milk 500ml', brand: 'Amul', packSize: '500 ml', category: 'milk', vegMark: 'veg', allergens: ['lactose'] },
-  '8901262150019': { name: 'Amul Butter 100g', brand: 'Amul', packSize: '100 g', category: 'butter_ghee', vegMark: 'veg', allergens: ['lactose'] },
-  '5449000000996': { name: 'Coca-Cola Can 330ml', brand: 'Coca-Cola', packSize: '330 ml', category: 'beverages', vegMark: 'veg', allergens: [] },
-};
 
 // Open Food Facts category tags → FreshKeep categories.
 const OFF_MAP: [RegExp, Category][] = [
@@ -23,8 +17,6 @@ export function mapOffCategory(tags: string[]): Category {
 }
 
 export async function lookupProduct(barcode: string) {
-  const seed = SEED[barcode];
-  if (seed) return { found: true, product: { ...seed, source: 'seed' } };
   try {
     const ua = process.env.OFF_USER_AGENT || 'FreshKeep/0.1 (demo)';
     const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,brands,quantity,categories_tags,image_front_small_url,allergens_tags,labels_tags`, {

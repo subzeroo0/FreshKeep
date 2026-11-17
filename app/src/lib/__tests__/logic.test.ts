@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { SEED_LEARNED, SEED_PRODUCTS } from '../../data/catalogue';
-import { buildDemoEvents, buildDemoItems } from '../../data/demo';
 import { RECIPES } from '../../data/recipes';
 import { addDays, daysBetween } from '../dates';
 import { parseDate } from '../dateParser';
@@ -10,7 +9,13 @@ import { computeImpact } from '../impact';
 import { matchProduct, tokenScore } from '../match';
 import { checkHardRules, rescueScore, suggestLocal, urgencyWeight } from '../meals';
 import { SHELF_LIFE_RULES } from '../shelfLife';
-import type { ConsumptionEvent, InventoryItem, UserProfile } from '../types';
+import type { ConsumptionEvent, InventoryItem, LearnedShelfLife, UserProfile } from '../types';
+
+// Learned rows exist only as a test fixture; the app ships with none until they are learned.
+const LEARNED: LearnedShelfLife[] = [
+  { productId: 'p-amul-taaza-500', platform: 'blinkit', city: 'Bengaluru', medianDaysLeftAtDelivery: 3, sampleSize: 12 },
+  { productId: 'p-tofu', platform: 'blinkit', city: 'Bengaluru', medianDaysLeftAtDelivery: 14, sampleSize: 3 },
+];
 
 const TODAY = '2026-11-17'; // Tuesday
 
@@ -37,13 +42,13 @@ describe('computeExpiry', () => {
   });
 
   it('uses learned shelf life when ≥5 samples exist', () => {
-    const r = computeExpiry({ category: 'milk', productId: 'p-amul-taaza-500', platform: 'blinkit', purchasedAt: TODAY, location: 'fridge' }, SHELF_LIFE_RULES, SEED_LEARNED, 'Bengaluru');
+    const r = computeExpiry({ category: 'milk', productId: 'p-amul-taaza-500', platform: 'blinkit', purchasedAt: TODAY, location: 'fridge' }, SHELF_LIFE_RULES, LEARNED, 'Bengaluru');
     expect(r.confidence).toBe('learned');
     expect(r.effectiveExpiry).toBe(addDays(TODAY, 3));
   });
 
   it('ignores learned rows with fewer than 5 samples', () => {
-    const r = computeExpiry({ category: 'tofu', productId: 'p-tofu', platform: 'blinkit', purchasedAt: TODAY, location: 'fridge' }, SHELF_LIFE_RULES, SEED_LEARNED, 'Bengaluru');
+    const r = computeExpiry({ category: 'tofu', productId: 'p-tofu', platform: 'blinkit', purchasedAt: TODAY, location: 'fridge' }, SHELF_LIFE_RULES, LEARNED, 'Bengaluru');
     expect(r.confidence).toBe('estimated');
   });
 
@@ -215,7 +220,7 @@ describe('meal engine', () => {
   });
 });
 
-// ---------- M21 impact + M22 demo ----------
+// ---------- M21 impact ----------
 describe('impact', () => {
   it('matches the event log for 10 seeded events', () => {
     const ev = (i: number, type: ConsumptionEvent['type'], value: number, fraction = 1): ConsumptionEvent => ({
@@ -235,19 +240,9 @@ describe('impact', () => {
     expect(s.mostWasted?.category).toBe('leafy_veg');
   });
 
-  it('demo fridge covers every urgency level with milk today and spinach + paneer tomorrow', () => {
-    const items = buildDemoItems(TODAY);
-    expect(items.length).toBeGreaterThanOrEqual(18);
-    const d = (name: string) => daysBetween(TODAY, items.find((i) => i.displayName.includes(name))!.effectiveExpiry);
-    expect(d('Milk')).toBe(0);
-    expect(d('Spinach')).toBe(1);
-    expect(d('Paneer')).toBe(1);
-    expect(d('Dahi')).toBe(3);
-    expect(d('Eggs')).toBe(10);
-    const buckets = new Set(items.map((i) => urgencyOf(daysBetween(TODAY, i.effectiveExpiry))));
-    expect(buckets).toEqual(new Set(['today', 'week', 'fine', 'expired']));
-    expect(new Set(items.map((i) => i.confidence))).toEqual(new Set(['confirmed', 'learned', 'estimated']));
-    expect(computeImpact(buildDemoEvents(TODAY), '2026-11').rescued).toBeGreaterThan(10);
+  it('ships with no invented learned data or demo barcodes', () => {
+    expect(SEED_LEARNED).toEqual([]);
+    expect(SEED_PRODUCTS.some((p) => p.barcode)).toBe(false);
   });
 });
 

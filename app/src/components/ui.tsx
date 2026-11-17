@@ -199,7 +199,7 @@ export function EmptyState({ icon, title, body, action }: { icon: string; title:
 }
 
 /**
- * Manual expiry entry (camera date-reading is bypassed for the investor demo).
+ * Manual expiry entry (or Scan date when the AI server is connected).
  * Accepts any printed format the parser understands, plus quick chips.
  */
 export function DateInput({ value, onChange, label = 'Expiry date (as printed on the pack)', category }: {

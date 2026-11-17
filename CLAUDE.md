@@ -18,4 +18,5 @@ FreshKeep is an Expo (React Native, TypeScript) app that tracks fridge items and
 - Local data is persisted with Zustand + AsyncStorage (works on phone and web) instead of expo-sqlite; the store in `app/src/store/useStore.ts` is the repository layer.
 - Styling uses a StyleSheet token file instead of NativeWind.
 - Expiry dates are typed (any printed format, parsed by M9) instead of read by the camera until the AI server is connected.
-- Without a server URL the app runs fully offline: seed catalogue, 48 local recipes, manual order lines.
+- Without a server URL the app runs fully offline: name catalogue, 48 local recipes, manual order lines.
+- No dummy data: the app starts empty, there is no demo mode, no sample order, no invented barcodes or learned shelf-life numbers. Store migration v2 removes demo items from older installs.

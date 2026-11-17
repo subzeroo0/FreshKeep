@@ -11,14 +11,14 @@ Eat what you buy before it expires. FreshKeep keeps track of what's in your frid
 | Onboarding: household, diet, goals, allergies, cuisines, kitchen, nudges | ✅ every step skippable |
 | Fridge home: Use today / This week / Fine / Expired, swipe used/thrown out, long-press menu, filters, search | ✅ |
 | Item detail: confidence explanation, mark opened (date moves up), freezer, amount left, manual date | ✅ |
-| Scan item: camera barcode on phone, typed barcode + sample packs everywhere → manual expiry entry | ✅ (camera date-reading needs the AI server) |
+| Scan item: camera barcode on phone or typed barcode → Open Food Facts or a photo of the pack → expiry typed or scanned | ✅ |
 | Quick add: 30 common chips, leftovers (2-day life), optional date | ✅ |
-| Import order: sample order, or your own screenshots with lines typed in (auto-read with AI server) → review → unpack checklist | ✅ |
-| Expiry intelligence: Confirmed → Learned (seeded, 20 SKUs) → Estimated, opened/freezer overrides | ✅ unit-tested |
+| Import order: your own screenshots or a photo of a bill, read by Claude (or typed in offline) → review → unpack checklist | ✅ |
+| Expiry intelligence: Confirmed (printed date) → Estimated (category shelf life), opened/freezer overrides; the Learned layer fills in from real data later | ✅ unit-tested |
 | Meals: B/L/D with rescue score, alternatives, "What can I make now?", "I cooked this" deducts from the fridge | ✅ offline recipes; AI planner with server |
 | Impact: ₹ saved / wasted, rescued rate, weekly chart, most-wasted tip | ✅ |
 | Nudges: morning + 6 PM local notifications, test nudge | ✅ (in-app banner on web) |
-| Demo mode: 18-item fridge, a month of history, sample order | ✅ Profile → Developer |
+| Starts empty: no demo or sample data, everything comes from your own orders, scans and photos | ✅ |
 
 ## Run it
 
@@ -58,19 +58,20 @@ The web prototype link stays offline: browsers block calls to outside servers fr
 
 Run the server locally: `cd server && cp .env.example .env` (add the key), `npm install && npm run dev`.
 
-## Demo script (5 min)
-1. **Impact**: the seeded month shows ₹ rescued vs wasted.
-2. **Add → Import order → Try the sample order**: 11 food items appear with dates already filled in. Point out the Estimated/Learned tags. **Add to fridge** opens the unpack checklist.
-3. **Add → Scan item → Amul Taaza**: type `EXP 20/11/26`. The item is saved as Confirmed.
-4. **Fridge**: long-press the milk → **Opened**, and its date moves up. Swipe items right (used up) or left (thrown out).
-5. **Meals**: lunch is palak paneer, using the spinach and paneer that expire tomorrow. Switch **Profile → How do you eat? → Vegan** and the paneer dishes disappear.
+## Showing it to someone (5 min)
+The app starts with an empty fridge, so do a real run before the meeting: import one of your own grocery orders and add a few things.
+1. **Add → Import order**: pick a Blinkit, Instamart or Zepto screenshot. Claude lists every item with a price, and dates are filled in. **Add to fridge** opens the unpack checklist.
+2. **Scan date** on a milk pouch: the item changes from Estimated to Confirmed.
+3. **Add → Photo of a product**: snap a pack with no barcode, and the name and category are filled in.
+4. **Fridge**: long-press an item → **Opened**, and its date moves up. Swipe right (used up) or left (thrown out).
+5. **Meals**: breakfast, lunch and dinner built around what expires first. Change the diet in **Profile** and the ideas change.
 6. **I cooked this**: the Fridge and Impact screens update straight away.
 
 ## Structure
 ```
 app/src/app/        screens (Expo Router)
 app/src/lib/        pure logic + tests (expiry, date parser, matching, meals, impact)
-app/src/data/       seed catalogue, learned shelf life, recipes, demo data
+app/src/data/       product name catalogue, shelf-life rules, offline recipes
 app/src/store/      Zustand store (persisted locally)
 server/src/         Hono API: /products/:barcode, /ai/identify-product, /ai/read-date, /ai/parse-order, /ai/suggest-meals
 docs/PRD.md         product requirements

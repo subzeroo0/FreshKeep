@@ -11,11 +11,6 @@ describe('server', () => {
     expect(await res.json()).toMatchObject({ ok: true });
   });
 
-  it('serves seed products without network', async () => {
-    const res = await app.request('/products/8901262010016');
-    expect(await res.json()).toMatchObject({ found: true, product: { category: 'milk' } });
-  });
-
   it('rejects a bad barcode with 422', async () => {
     expect((await app.request('/products/abc')).status).toBe(422);
   });

@@ -1,7 +1,7 @@
 import type { Recipe, RecipeIngredient } from '../lib/meals';
 import type { Category, Equipment, Slot } from '../lib/types';
 
-// Offline recipe library — used when the AI endpoint is unavailable (and always in demo mode).
+// Offline recipe library — used when the AI endpoint is unavailable (offline mode).
 // Ingredients marked main must be in the fridge; others become extras if missing.
 
 const I = (label: string, amount: string, fraction: number, opts: { cats?: Category[]; words?: string[]; main?: boolean } = {}): RecipeIngredient => ({

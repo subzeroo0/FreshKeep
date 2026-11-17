@@ -16,7 +16,7 @@ const STEPS: StepId[] = ['household', 'diet', 'goals', 'allergies', 'cuisines', 
 export default function Onboarding() {
   const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
-  const { updateProfile, completeOnboarding, loadDemo } = useStore();
+  const { updateProfile, completeOnboarding } = useStore();
   const [i, setI] = useState(-1); // -1 welcome, STEPS.length = first items
 
   const finish = (then?: () => void) => {
@@ -38,7 +38,6 @@ export default function Onboarding() {
         </View>
         <Footer>
           <Button title="Start" onPress={() => setI(0)} />
-          <Button title="Explore with a demo fridge" variant="ghost" onPress={() => { loadDemo(); router.replace('/'); }} />
         </Footer>
       </View>
     );
@@ -53,7 +52,8 @@ export default function Onboarding() {
           <View style={{ gap: 10, marginTop: space(6) }}>
             <BigOption icon="🧾" title="Import your last grocery order" sub="Blinkit, Instamart or Zepto screenshot" onPress={() => finish(() => router.push('/add/import'))} />
             <BigOption icon="📦" title="Scan something from your fridge" sub="Barcode + the date on the pack" onPress={() => finish(() => router.push('/add/scan'))} />
-            <BigOption icon="✨" title="Load a demo fridge" sub="18 items, a month of history and meal ideas" onPress={() => { loadDemo(); router.replace('/'); }} />
+            <BigOption icon="📷" title="Photograph a product" sub="No barcode? Snap the pack" onPress={() => finish(() => router.push('/add/product?photo=1'))} />
+            <BigOption icon="🥬" title="Quick add loose items" sub="Veg, fruit, batter, leftovers" onPress={() => finish(() => router.push('/add/quick'))} />
           </View>
         </ScrollView>
         <Footer>

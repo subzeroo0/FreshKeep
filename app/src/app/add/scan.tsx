@@ -7,12 +7,10 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Chip, Field, Muted, Screen, TopBar } from '../../components/ui';
-import { SEED_PRODUCTS } from '../../data/catalogue';
 import { colors, radius, space } from '../../theme';
 
-const SAMPLES = SEED_PRODUCTS.filter((p) => p.barcode).slice(0, 8);
 
-// M6 — barcode scanner. Camera on a phone; typed barcode or sample chips everywhere.
+// M6 — barcode scanner. Camera on a phone; typed barcode everywhere.
 export default function ScanScreen() {
   const [perm, requestPerm] = useCameraPermissions();
   const [manual, setManual] = useState(Platform.OS === 'web');
@@ -52,21 +50,15 @@ export default function ScanScreen() {
           ) : (
             <View style={styles.webNote}>
               <Ionicons name="phone-portrait-outline" size={20} color={colors.brand} />
-              <Muted style={{ flex: 1 }}>Camera scanning runs in the phone app. In this preview, type a barcode or tap a sample pack.</Muted>
+              <Muted style={{ flex: 1 }}>Camera scanning runs in the phone app. In this preview, type the barcode printed under the bars.</Muted>
             </View>
           )}
 
           <Field label="Barcode" value={code} onChangeText={(s) => setCode(s.replace(/\D/g, ''))} placeholder="e.g. 8901262010016" keyboardType="number-pad" />
           <Button title="Find product" icon="search" disabled={code.length < 6} style={{ marginTop: space(3) }} onPress={() => open(code)} />
 
-          <Text style={[styles.label, { marginTop: space(6) }]}>Try a sample pack</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {SAMPLES.map((p) => (
-              <Chip key={p.id} label={p.name.replace(/\s\d.*$/, '')} onPress={() => open(p.barcode!)} />
-            ))}
-          </View>
-          <Pressable onPress={() => router.replace('/add/quick')} style={{ marginTop: space(6) }}>
-            <Text style={{ color: colors.brand, fontWeight: '700', textAlign: 'center' }}>No barcode? Quick add instead →</Text>
+          <Pressable onPress={() => router.replace('/add/product?photo=1')} style={{ marginTop: space(6) }}>
+            <Text style={{ color: colors.brand, fontWeight: '700', textAlign: 'center' }}>No barcode? Photograph the pack →</Text>
           </Pressable>
         </Screen>
       </View>

@@ -36,7 +36,7 @@ export default function FridgeScreen() {
   const insets = useSafeAreaInsets();
   const allItems = useStore((s) => s.items);
   const profile = useStore((s) => s.profile);
-  const { useUp, discard, markOpened, useSome, loadDemo } = useStore();
+  const { useUp, discard, markOpened, useSome } = useStore();
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
   const [showExpired, setShowExpired] = useState(false);
@@ -132,11 +132,11 @@ export default function FridgeScreen() {
           <EmptyState
             icon="🧊"
             title="Your fridge is empty"
-            body="Import your last grocery order, scan a pack, or quick-add loose veg. Or load the demo fridge to see FreshKeep in action."
+            body="Import your last grocery order, scan or photograph a pack, or quick-add loose veg. Every item gets a use-by date."
             action={
               <View style={{ gap: 10 }}>
-                <Button title="Add groceries" icon="add-circle" onPress={() => router.push('/add')} />
-                <Button title="Load demo fridge" variant="secondary" icon="sparkles" onPress={loadDemo} />
+                <Button title="Import a grocery order" icon="receipt-outline" onPress={() => router.push('/add/import')} />
+                <Button title="Add something else" variant="secondary" icon="add-circle" onPress={() => router.push('/add')} />
               </View>
             }
           />

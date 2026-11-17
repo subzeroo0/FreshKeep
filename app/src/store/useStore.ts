@@ -3,7 +3,6 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { SEED_LEARNED, SEED_PRODUCTS } from '../data/catalogue';
-import { buildDemoEvents, buildDemoItems } from '../data/demo';
 import { daysBetween, today as todayISO } from '../lib/dates';
 import { computeExpiry } from '../lib/expiry';
 import { uid } from '../lib/id';
@@ -65,7 +64,6 @@ interface State {
   mealCache?: MealCache;
   inventoryVersion: number;
   apiUrl: string;
-  demoMode: boolean;
 
   setHydrated: () => void;
   updateProfile: (patch: Partial<UserProfile>) => void;
@@ -88,7 +86,6 @@ interface State {
   addOrderLine: (orderId: string, line: Omit<OrderImportLine, 'id' | 'orderImportId'>) => void;
   commitOrder: (orderId: string) => string[];
   setApiUrl: (url: string) => void;
-  loadDemo: () => void;
   resetApp: () => void;
 }
 
@@ -130,7 +127,6 @@ const initial = {
   mealCache: undefined as MealCache | undefined,
   inventoryVersion: 0,
   apiUrl: (process.env.EXPO_PUBLIC_API_URL ?? '').trim().replace(/\/$/, ''),
-  demoMode: false,
 };
 
 export const useStore = create<State>()(
@@ -302,26 +298,29 @@ export const useStore = create<State>()(
 
         setApiUrl: (url) => set({ apiUrl: url.trim().replace(/\/$/, ''), mealCache: undefined }),
 
-        loadDemo: () => {
-          const now = todayISO();
-          set((s) => ({
-            items: buildDemoItems(now),
-            events: buildDemoEvents(now),
-            mealStatus: {},
-            cookedMeals: [],
-            mealCache: undefined,
-            demoMode: true,
-            profile: s.profile.onboardedAt ? s.profile : { ...DEFAULT_PROFILE, cookTimeWeekdayMin: 30, equipment: ['stove', 'pressure_cooker', 'mixer_grinder'], id: uid('u-'), onboardedAt: new Date().toISOString() },
-            ...bump(10),
-          }));
-        },
-
         resetApp: () => set({ ...initial, apiUrl: get().apiUrl, hydrated: true, inventoryVersion: get().inventoryVersion + 1 }),
       };
     },
     {
       name: 'freshkeep-v1',
-      version: 1,
+      version: 2,
+      // v2: real use only — clear anything that came from the old demo fridge.
+      migrate: (persisted, version) => {
+        const s = (persisted ?? {}) as Partial<State> & { demoMode?: boolean };
+        if (version < 2) {
+          const isDemo = (id?: string) => !!id && id.startsWith('demo-');
+          s.items = (s.items ?? []).filter((i) => !isDemo(i.id));
+          s.events = (s.events ?? []).filter((e) => !isDemo(e.id) && !isDemo(e.itemId));
+          s.cookedMeals = (s.cookedMeals ?? []).filter((m) => !m.usesItems.some((u) => isDemo(u.itemId)));
+          s.orders = (s.orders ?? []).filter((o) => o.imageUri !== 'sample');
+          const orderIds = new Set(s.orders.map((o) => o.id));
+          s.orderLines = (s.orderLines ?? []).filter((l) => orderIds.has(l.orderImportId));
+          s.mealStatus = {};
+          s.mealCache = undefined;
+          delete s.demoMode;
+        }
+        return s as State;
+      },
       storage: createJSONStorage(() => AsyncStorage),
       partialize: ({ hydrated, ...rest }) => rest,
       // A server URL baked into the build (EXPO_PUBLIC_API_URL) applies unless the user set one.

@@ -6,7 +6,6 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { toast } from '../../components/Toast';
 import { Button, Card, Chip, Muted, Screen, SectionTitle, TopBar } from '../../components/ui';
-import { SAMPLE_ORDER } from '../../data/demo';
 import { api, ApiOffline } from '../../lib/api';
 import { addDays, today as todayISO } from '../../lib/dates';
 import { buildOrderLines } from '../../lib/orderLines';
@@ -23,7 +22,7 @@ const PLATFORMS: { key: Platform; label: string }[] = [
   { key: 'other', label: 'Other' },
 ];
 
-// M11 — order intake: gallery picker (works in Expo Go and on the web) or the sample order.
+// M11 — order intake: screenshots from the gallery or a photo of a bill.
 export default function ImportOrder() {
   const { createOrder } = useStore();
   const products = useStore((s) => s.products);
@@ -52,14 +51,6 @@ export default function ImportOrder() {
     } catch (e) {
       setPickError(e instanceof Error ? e.message : 'Couldn’t take the photo');
     }
-  };
-
-  const useSample = () => {
-    const id = createOrder(
-      { platform: SAMPLE_ORDER.platform, deliveredAt: todayISO(), status: 'review', totalPaise: SAMPLE_ORDER.totalPaise, imageUri: 'sample' },
-      buildOrderLines(SAMPLE_ORDER.lines.map((l) => ({ rawText: l.rawText, name: l.parsedName, packSize: l.parsedPackSize, quantity: l.quantity, pricePaise: l.pricePaise })), allProducts(products)),
-    );
-    router.replace(`/add/review/${id}`);
   };
 
   const proceed = async () => {
@@ -101,18 +92,7 @@ export default function ImportOrder() {
           </Card>
         ) : null}
 
-        <Card style={styles.demoCard} onPress={useSample}>
-          <View style={styles.demoIcon}>
-            <Ionicons name="sparkles" size={22} color={colors.white} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontWeight: '800', color: colors.white, fontSize: 16 }}>Try the sample order</Text>
-            <Text style={{ color: '#D7E6D3', marginTop: 2 }}>12 items from a quick-commerce order, already read</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.white} />
-        </Card>
-
-        <SectionTitle>Or use your own screenshot</SectionTitle>
+        <SectionTitle>Your order screenshots</SectionTitle>
         {images.length ? (
           <ScrollView horizontal contentContainerStyle={{ gap: 10 }} showsHorizontalScrollIndicator={false}>
             {images.map((im, i) => (
@@ -162,8 +142,6 @@ export default function ImportOrder() {
 }
 
 const styles = StyleSheet.create({
-  demoCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.brand },
-  demoIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   drop: {
     alignItems: 'center',
     padding: space(6),

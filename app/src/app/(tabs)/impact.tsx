@@ -19,7 +19,6 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 export default function ImpactScreen() {
   const insets = useSafeAreaInsets();
   const events = useStore((s) => s.events);
-  const loadDemo = useStore((s) => s.loadDemo);
   const now = todayISO();
   const month = now.slice(0, 7);
   const stats = useMemo(() => computeImpact(events, month), [events, month]);
@@ -39,7 +38,7 @@ export default function ImpactScreen() {
             icon="🌱"
             title="Nothing tracked yet this month"
             body="Swipe items as used or thrown out and cook suggested meals — your rescued food and ₹ saved show up here."
-            action={<Button title="Load demo month" variant="secondary" icon="sparkles" onPress={loadDemo} />}
+            action={<Button title="Go to my fridge" variant="secondary" icon="snow-outline" onPress={() => router.navigate('/')} />}
           />
         ) : (
           <>

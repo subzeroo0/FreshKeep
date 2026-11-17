@@ -15,7 +15,7 @@ import { colors, font, space } from '../../theme';
 
 const PICK_CATS: Category[] = ['milk', 'curd_yogurt', 'paneer', 'cheese', 'butter_ghee', 'cream', 'eggs', 'bread', 'batter', 'leafy_veg', 'vegetables', 'fruits', 'meat', 'fish', 'tofu', 'sauces_condiments', 'beverages', 'ready_to_eat', 'other'];
 
-// M7 product lookup → M8 date capture (manual entry for the demo; camera date-reading comes with the API key).
+// M7 product lookup → M8 date capture (typed, or read from a photo when the AI server is connected).
 export default function ProductScreen() {
   const { barcode: barcodeParam, photo: photoMode } = useLocalSearchParams<{ barcode?: string; photo?: string }>();
   const barcode = barcodeParam || undefined;

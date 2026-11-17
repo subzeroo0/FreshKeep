@@ -26,7 +26,7 @@ export default function ProfileScreen() {
   const profile = useStore((s) => s.profile);
   const items = useStore((s) => s.items);
   const apiUrl = useStore((s) => s.apiUrl);
-  const { updateProfile, loadDemo, resetApp, setApiUrl } = useStore();
+  const { updateProfile, resetApp, setApiUrl } = useStore();
   const [url, setUrl] = useState(apiUrl);
   const [checking, setChecking] = useState(false);
   const [name, setName] = useState(profile.name ?? '');
@@ -95,9 +95,8 @@ export default function ProfileScreen() {
         </Card>
         <Muted style={{ marginTop: 6, fontSize: 12 }}>Changing your diet, allergies or goals refreshes today’s meal ideas.</Muted>
 
-        <SectionTitle>Developer · demo</SectionTitle>
+        <SectionTitle>Notifications and data</SectionTitle>
         <Card style={{ gap: 10 }}>
-          <Button title="Load demo fridge" icon="sparkles" variant="secondary" onPress={() => { loadDemo(); toast('Demo fridge loaded — 18 items and a month of history'); router.navigate('/'); }} />
           <Button title="Send test nudge" icon="notifications-outline" variant="outline" onPress={() => sendTestNudge(items, profile)} />
           <Button title="Reset app" icon="refresh" variant="danger" onPress={() => confirm('Reset FreshKeep?', 'This clears your fridge, history and profile on this device.', () => { resetApp(); router.replace('/onboarding'); })} />
         </Card>
@@ -117,7 +116,7 @@ export default function ProfileScreen() {
           <Button title={apiUrl ? 'Save & test' : 'Connect'} small loading={checking} onPress={checkServer} style={{ marginTop: 10 }} />
           <Text style={{ marginTop: 10, fontSize: 12, fontWeight: '600', color: status === 'ai' ? colors.ok : status === 'down' ? colors.danger : status === 'nokey' ? colors.warn : colors.textMuted }}>
             {!apiUrl
-              ? '○ Offline mode — demo recipes and manual entry'
+              ? '○ Offline mode — built-in recipes and manual entry'
               : status === 'ai'
                 ? `● Connected · AI on · ${apiUrl}`
                 : status === 'nokey'

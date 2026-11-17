@@ -2,7 +2,7 @@ import { useStore } from '../store/useStore';
 import type { Category, MealSuggestion, Platform, Product, Slot, UserProfile } from './types';
 
 // Thin client for the /server proxy. The Anthropic key never lives in the app.
-// When no API URL is configured (the default for the demo), every call throws ApiOffline
+// When no API URL is configured (offline mode), every call throws ApiOffline
 // and the caller falls back to local logic.
 
 export class ApiOffline extends Error {
